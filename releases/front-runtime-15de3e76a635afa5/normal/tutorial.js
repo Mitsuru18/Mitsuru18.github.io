@@ -172,7 +172,7 @@ const GATES={
  style:{view:'hub',views:['result','received','home','hub','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','styles','style-pick','style-save','style-cancel']},
  rematch:{view:'hub',views:FIGHT_VIEWS,actions:[...FIGHT_ACTIONS,'retry']},
  skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','candidate-preview','choose-skill','clear-slot','home','hub']},
- training:{view:'home',views:['home','hub','local-training','local-training-story'],actions:['back','home','hub','local-training','training-rank','training-start','training-skip']},
+ training:{view:'home',views:['home','hub','local-training','local-training-story'],actions:['back','home','local-training','training-rank','training-start','training-skip']},
 };
 export function tutorialGate(s){
  if(!tutorialActive(s))return null;
