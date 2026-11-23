@@ -113,5 +113,5 @@ async function launchPinnedRuntime({expected,entry,catalogURL,catalogSHA256,pane
   return {started:false,mode,importRequested,failedStage:panel.dataset.failedStage};
  }
 }
-(async()=>{const expected="front-runtime-cdc4445b80a0ae46",entry="/releases/front-runtime-cdc4445b80a0ae46/cup/current/tournament-prototype/tournament-ui.js";const panel=document.createElement('p');panel.id='release-status';panel.setAttribute('role','status');panel.textContent='記録を変更せず、更新一式を確認しています。';document.body.prepend(panel);await launchPinnedRuntime({expected,entry,catalogURL:'/releases/'+expected+'/startup-graph.json',catalogSHA256:"a9e16b7685f1c570a1988771af13323c965501f307ccc5a1f65f87e54128e34f",panel,workerBudgetMs:entry.endsWith('/normal/home-app.js')?1500:8000});})();
+(async()=>{const expected="front-runtime-42a95a35fa8fb4ed",entry="/releases/front-runtime-42a95a35fa8fb4ed/cup/current/tournament-prototype/tournament-ui.js";const panel=document.createElement('p');panel.id='release-status';panel.setAttribute('role','status');panel.textContent='記録を変更せず、更新一式を確認しています。';document.body.prepend(panel);await launchPinnedRuntime({expected,entry,catalogURL:'/releases/'+expected+'/startup-graph.json',catalogSHA256:"66bcec961dd47cf91fe361a4dfb9db87782767d094e546757e446236ca141463",panel,workerBudgetMs:entry.endsWith('/normal/home-app.js')?1500:8000});})();
 </script></html>
