@@ -45,6 +45,29 @@ function persist(candidate=state){if(storageBlocked)return false;if(!navigator.l
 function remember(){if(storageBlocked)return false;try{localStorage.setItem(UI_KEY,JSON.stringify({...ui,mainSaveRevision:mainGuardStatus(localStorage,REVIEW_SAVE_KEY)?.revision??null}))}catch{storageAvailable=false}}
 function toast(text){const t=document.querySelector('#toast');if(t){t.textContent=text;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2500)}}
 function guideHtml(){const text=state?tutorialGuideText(state):'';return text?`<p class="tutorial-guide" role="status" style="border:1px solid #8a6d1f;border-left:6px solid #c9a227;border-radius:8px;padding:10px 12px;margin:0 0 12px;background:rgba(201,162,39,.10)">${esc(text)}</p>`:'';}
+// Tutorial control highlighting: while the tutorial gate is active, every
+// rendered button is marked with the SAME decision handleClick enforces —
+// actions in tutorialGate(state).actions get .tut-allowed, all others get
+// .tut-blocked — so what can be pressed is visible before tapping. Called
+// at the end of screen(), i.e. after every render, so it follows step
+// changes and reloads exactly; when the tutorial is inactive it does
+// nothing, and because innerHTML is rebuilt per render no class can
+// persist past the tutorial. Buttons already disabled for a non-tutorial
+// reason are not highlighted (their disabled look already speaks).
+const TUT_GATE_CSS='.tut-blocked{opacity:.35!important;filter:saturate(.3) grayscale(.35)}'
++'.tut-allowed{box-shadow:0 0 0 2px rgba(201,162,39,.9),0 0 14px rgba(201,162,39,.45);animation:tutAllowedPulse 1.8s ease-in-out infinite}'
++'@keyframes tutAllowedPulse{0%,100%{box-shadow:0 0 0 2px rgba(201,162,39,.75),0 0 9px rgba(201,162,39,.30)}50%{box-shadow:0 0 0 2px rgba(201,162,39,1),0 0 18px rgba(201,162,39,.60)}}'
++'@media (prefers-reduced-motion:reduce){.tut-allowed{animation:none}}';
+function markTutorialControls(){
+ if(!state||!tutorialActive(state))return;
+ const g=tutorialGate(state);if(!g)return;
+ if(!document.querySelector('#tut-gate-style')){const st=document.createElement('style');st.id='tut-gate-style';st.textContent=TUT_GATE_CSS;document.head.appendChild(st);}
+ app.querySelectorAll('button[data-action]').forEach(b=>{
+  const allowed=g.actions.has(b.dataset.action);
+  b.classList.toggle('tut-allowed',allowed&&!b.disabled);
+  b.classList.toggle('tut-blocked',!allowed);
+ });
+}
 function nextOpponentIndex(){const os=opponents(state),next=os.findIndex(o=>!hasWon(state,o.id)&&dojoUnlocked(state,o.id));if(next>=0)return next;let last=0;os.forEach((o,i)=>{if(dojoUnlocked(state,o.id))last=i});return last;}
 function resetOpponentChoice(){opponentEpoch++;ui.dojo={};}
 function selectOpponentId(id){const i=opponents(state).findIndex(o=>o.id===id);if(i>=0)ui.dojo[state.country]=i;}
@@ -53,7 +76,7 @@ function selectedIndex(){const os=opponents(state),preferred=Number(ui.dojo[stat
 const selected=()=>opponents(state)[selectedIndex()];
 function screen(title,content,actions,eyebrow=''){
  const view=resetOpen?'reset':ui.view,navAction=({home:'title',hub:'home',prefight:'hub',equipment:'equipment-done',abilities:'ability-back',styles:'style-cancel',result:'hub',appearance:'appearance-cancel','local-training':'hub','local-training-story':'training-skip',menu:'hub','fight-records':'records',battle:'pause','opponent-details':'prefight','opponent-list':'back',candidates:'equipment','skill-detail':'detail-back',pause:'resume','guest-settings':'title'})[view]||'back',labels={home:'HOME',hub:'FIGHT',prefight:'PREPARATION',equipment:'EQUIPMENT',abilities:'GROWTH',battle:'AUTO BATTLE',result:'RESULT'},isTitle=['welcome','title'].includes(view);
- app.innerHTML=`<section class="game-screen ${isTitle?'title-screen':''}" data-screen="${esc(view)}">${isTitle?'':`<div class="topline">${btn(navAction,'‹ 戻る','','nav-back')}<span class="brand-small">WFJ / ${labels[view]||'JOURNEY'}</span>${state&&state.abilities.confirmed&&(!battle||battle.done&&result)&&!demo&&view!=='home'?btn('home','ホーム','','nav-home'):''}</div>`}<div class="screen-heading">${eyebrow?`<p class="eyebrow">${esc(eyebrow)}</p>`:''}<h1>${title}</h1></div><div class="screen-content">${storageBlocked?'<p role="alert">記録保護のため更新を止めています。再読込、または対応するブラウザーで確認してください。</p>':''}${content}</div><nav class="screen-actions" aria-label="画面の操作">${actions}</nav></section>`;window.scrollTo?.(0,0)
+ app.innerHTML=`<section class="game-screen ${isTitle?'title-screen':''}" data-screen="${esc(view)}">${isTitle?'':`<div class="topline">${btn(navAction,'‹ 戻る','','nav-back')}<span class="brand-small">WFJ / ${labels[view]||'JOURNEY'}</span>${state&&state.abilities.confirmed&&(!battle||battle.done&&result)&&!demo&&view!=='home'?btn('home','ホーム','','nav-home'):''}</div>`}<div class="screen-heading">${eyebrow?`<p class="eyebrow">${esc(eyebrow)}</p>`:''}<h1>${title}</h1></div><div class="screen-content">${storageBlocked?'<p role="alert">記録保護のため更新を止めています。再読込、または対応するブラウザーで確認してください。</p>':''}${content}</div><nav class="screen-actions" aria-label="画面の操作">${actions}</nav></section>`;window.scrollTo?.(0,0);markTutorialControls()
 }
 function go(view,patch={},replace=false){if(!replace)trail.push({...ui,dojo:{...ui.dojo},opponentSession,opponentEpoch});Object.assign(ui,patch,{view});remember();if(window.history){const snapshot={view:ui.view,countryPage:ui.countryPage,mapRegion:ui.mapRegion,mapCountry:ui.mapCountry,recordsCountry:ui.recordsCountry,mapStart:ui.mapStart,dojo:{...ui.dojo},slot:ui.slot,page:ui.page,skill:ui.skill,tab:ui.tab,equipReturn:ui.equipReturn,detailReturn:ui.detailReturn,opponentSession,opponentEpoch};window.history[replace?'replaceState':'pushState']({wfjUI:snapshot},'','#'+view)}render()}
 function returnToMap(){const view=state?'world':'countries';if(trail.at(-1)?.view===view){const selected=ui.mapCountry;ui={...navigationUI(trail.pop()),mapCountry:selected};remember();render()}else go(view,{},true)}
