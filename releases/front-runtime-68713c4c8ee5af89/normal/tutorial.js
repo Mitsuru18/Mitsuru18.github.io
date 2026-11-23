@@ -171,8 +171,8 @@ const GATES={
  fight3:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  style:{view:'hub',views:['result','received','home','hub','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','styles','style-pick','style-save','style-cancel']},
  rematch:{view:'hub',views:FIGHT_VIEWS,actions:[...FIGHT_ACTIONS,'retry']},
- skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','choose-skill','clear-slot','home','hub']},
- training:{view:'hub',views:['home','hub','local-training','local-training-story'],actions:['back','home','hub','local-training','training-rank','training-start','training-skip']},
+ skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','candidate-preview','choose-skill','clear-slot','home','hub']},
+ training:{view:'home',views:['home','hub','local-training','local-training-story'],actions:['back','home','hub','local-training','training-rank','training-start','training-skip']},
 };
 export function tutorialGate(s){
  if(!tutorialActive(s))return null;
@@ -190,6 +190,6 @@ export const TUTORIAL_GUIDES=Object.freeze({
  style:'力負けは戦い方の相性しだい。対戦準備で「あなた」を押し、ファイトスタイルをオフェンシブに変えてから再戦しよう。',
  rematch:'オフェンシブで再戦。同じ相手に、今度こそ勝とう。',
  skill:'新しい技「ストレート」を覚えた。見本で動きを見て、装備画面でセットを確認しよう。確認したら戻るボタンで完了。',
- training:'最後に修行を体験しよう。「無料の基礎修行」を選んで始めよう。',
+ training:'最後に修行を体験しよう。ホームの「修行に行く」から、「無料の基礎修行」を選んで始めよう。',
 });
 export const tutorialGuideText=s=>tutorialActive(s)?TUTORIAL_GUIDES[s.tutorial.step]??'':'';
