@@ -160,7 +160,7 @@ export function finishTutorialBattle(battle,ticket,stepBattle){
 // --- Step gates ---------------------------------------------------------------
 // One place decides which views and actions a step allows. Anything not
 // listed is ignored by the app while the tutorial is active.
-const FIGHT_VIEWS=['home','hub','prefight','opponent-details','battle','pause','result','received'];
+const FIGHT_VIEWS=['home','hub','opponent-details','battle','pause','result','received'];
 const FIGHT_ACTIONS=['back','home','hub','opponent','prefight','opponent-details','opponent-page','fight','pause','resume','speed','skip','result','received','received-page','result-next'];
 const ABILITY_ACTIONS=['back','ability-plus','ability-minus','ability-confirm','ability-cancel','ability-back'];
 const GATES={
@@ -169,7 +169,7 @@ const GATES={
  fight2:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  allocate:{view:'abilities',views:['abilities','result','received'],actions:[...ABILITY_ACTIONS,'result','received','received-page','result-next']},
  fight3:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
- style:{view:'prefight',views:['result','received','home','hub','prefight','opponent-details','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','opponent-details','opponent-page','styles','style-pick','style-save','style-cancel']},
+ style:{view:'hub',views:['result','received','home','hub','opponent-details','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','opponent-details','opponent-page','styles','style-pick','style-save','style-cancel']},
  rematch:{view:'hub',views:FIGHT_VIEWS,actions:[...FIGHT_ACTIONS,'retry']},
  skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','choose-skill','clear-slot','home','hub']},
  training:{view:'hub',views:['home','hub','local-training','local-training-story'],actions:['back','home','hub','local-training','training-rank','training-start','training-skip']},
@@ -184,7 +184,6 @@ export function tutorialGate(s){
 // action is unambiguous.
 export const TUTORIAL_GUIDES=Object.freeze({
  intro:'まずは強さの決め方を覚えよう。10ポイントを3つの能力に振り分けて、「この配分で確定」を押そう。',
- fight1:'初めての試合。相手に挑んで「試合開始」を押そう。試合は自動で進むから、最後まで見届けよう。',
  fight2:'もう一勝しよう。相手に挑んで試合開始。勝てばレベルアップが見えてくる。',
  allocate:'レベルアップ！ 増えた1ポイントを好きな能力に振って、「この配分で確定」を押そう。',
  fight3:'次は手強い相手。まずは今の戦い方のまま挑んでみよう。',
