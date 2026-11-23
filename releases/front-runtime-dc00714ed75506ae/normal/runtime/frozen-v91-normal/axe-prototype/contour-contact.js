@@ -1,0 +1,51 @@
+import {geometryContext,clipHalfPlane,setsIntersect,inside,intersectionWitness}from'./path-geometry.js';
+import{axeCommonRig}from'./common-painter.js';
+import{fourTraceFootRegistration,paintResolvedFootContactGeometry}from'./../four-trace-painter.js';
+import{axeReceiverHeadDescriptor,axePrototypePose}from'./../renderer.js';
+import{traceDisplayRoot}from'./../four-trace-ko.js';
+import{contactBodyJoints}from'./../engine.js';
+import{punchTouchesSurface}from'./../body-uppercut-contact.js';
+const P={skin:'#c8916e',light:'#e8b18a',shade:'#996448',cloth:'#23565c',bright:'#43828a',wrap:'#eee6d3',hair:'#292a2c'};
+// Cached values depend only on the immutable sampled joints, tolerance and
+// facing. Receiver contours and world-time/root tests still run unchanged.
+const axeFootSurfaces=new WeakMap();
+function axeFootSurface(joints,tolerance,face){
+ let variants=axeFootSurfaces.get(joints);if(!variants){variants=new Map();axeFootSurfaces.set(joints,variants);}
+ const key=tolerance+'|'+face;if(variants.has(key))return variants.get(key);
+ const rig=axeCommonRig(joints),reg=fourTraceFootRegistration(rig,'right',P),art=reg.art,far=rig.partOrder.indexOf('rightThigh')<rig.partOrder.indexOf('leftThigh'),fc=geometryContext(tolerance);paintResolvedFootContactGeometry(fc.context,rig.points.rightAnkle,art,P,far);
+ const det=art.ux*art.vy-art.uy*art.vx;if(Math.abs(det)<1e-8)return null;
+ const cut=p=>((p[0]-art.x)*art.vy-(p[1]-art.y)*art.vx)/det+.5,mapFoot=p=>[face*p[0],p[1]];
+ const footRecords=fc.records.map(r=>({...r,polygons:r.polygons.map(p=>clipHalfPlane(p,cut)).filter(p=>p.length>=3).map(p=>p.map(mapFoot))})),footFill=footRecords.filter(r=>r.kind==='fill').flatMap(r=>r.polygons),footAll=footRecords.flatMap(r=>r.polygons);
+ const value={art,fc,footRecords,footFill,footAll};variants.set(key,value);return value;
+}
+function uncachedContour(att,def,time=0,{tolerance=1e-4,battle=null,diagnostics=true,surfacesOnly=false}={}){
+ const profileStart=performance.now();
+ if(!att.axePrototype||att.action?.technique!=='axekick'||att.axeFinish||battle?.done)return{supported:false,reaches:false,reason:'Only live candidate axe is scoped'};
+ const shown=f=>Number.isFinite(f.finishFrozenRootX)?f.finishFrozenRootX:traceDisplayRoot(battle,f,battle?.fighters?.indexOf(f)??-1,0),ax=shown(att),dx=shown(def),drawX=x=>28+Math.max(0,Math.min(1,(Number(x)||0)/800))*328;
+ const pose=axePrototypePose(att,time),af=att.facing??1,df=def.facing??-1,gap=drawX(dx)-drawX(ax),mapFoot=p=>[af*p[0],p[1]],mapHead=p=>[gap+df*p[0],p[1]];
+ const surface=axeFootSurface(pose.joints,tolerance,af);if(!surface)return{supported:false,reason:'Degenerate foot transform'};
+ const {art,fc,footRecords,footFill,footAll}=surface;
+ profile.poseAndFootPaintMs+=performance.now()-profileStart;const headStart=performance.now();
+ const descriptor=axeReceiverHeadDescriptor(def,time,battle,battle?.fighters?.indexOf(def)??1);if(!descriptor.supported)return{supported:false,reason:descriptor.reason};
+ const hc=geometryContext(tolerance);if(descriptor.floorLift)hc.context.translate(0,-descriptor.floorLift);let started=false;const headOnly=new Proxy(hc.context,{get:(t,k)=>{if(k==='save')return()=>{started=true;t.save()};const v=t[k];return typeof v==='function'?(...a)=>{if(started)return v.apply(t,a)}:v},set:(t,k,v)=>{if(started)t[k]=v;return true}});descriptor.paint(descriptor.faceOnly?hc.context:headOnly);profile.headPaintMs+=performance.now()-headStart;const intersectionStart=performance.now();
+ const faceFillRecords=descriptor.faceOnly?hc.records.filter(r=>r.kind==='fill'):[hc.records.find(r=>r.kind==='fill')],faceStrokeRecords=descriptor.faceOnly?hc.records.filter(r=>r.kind==='stroke'):[hc.records.find(r=>r.kind==='stroke')].filter(Boolean),faceLocalFill=faceFillRecords.flatMap(r=>r.polygons),faceFill=faceLocalFill.map(p=>p.map(mapHead)),faceStroke=faceStrokeRecords.flatMap(r=>r.polygons).map(p=>p.map(mapHead)),faceAll=[...faceFill,...faceStroke],h=[art.heel.x,art.heel.y],t=[art.toe.x,art.toe.y],line=Array.from({length:33},(_,i)=>mapFoot([h[0]+(t[0]-h[0])*.25*i/32,h[1]+(t[1]-h[1])*.25*i/32]));
+ if(surfacesOnly)return{supported:true,foot:footAll,face:faceAll,receiverKind:descriptor.kind,gap,attShownRoot:ax,defShownRoot:dx,sourceElapsed:pose.sourceElapsed};
+ const d=contactBodyJoints(def,time),ellipse={kind:'ellipse',center:[gap+df*d.head[0],-d.head[1]],rx:5.5,ry:7.6};
+ // Runtime needs the same surface witness, not counterfactual diagnostic comparisons.
+ if(!diagnostics){const witness=intersectionWitness(footAll,faceAll),result={supported:true,target:'head',point:witness?[witness[0],-witness[1]]:null,receiver:[[ellipse.center[0],-ellipse.center[1]]],radius:0,reaches:!!witness,sourceIndex:pose.sourceIndex,tolerance,receiverKind:descriptor.kind,geometry:'Unchanged actual painter rear-quarter against existing anatomical face fill/stroke; no hair; runtime predicate',renderFrame:{time,tick:battle?.tick??null,attPhysicalRoot:att.x,defPhysicalRoot:def.x,attShownRoot:ax,defShownRoot:dx,attDrawX:drawX(ax),defDrawX:drawX(dx),attFace:af,defFace:df,actionElapsed:att.action.elapsed,sourceElapsed:pose.sourceElapsed,receiverMotionTime:def.motionTime,poseClock:pose.clock}};profile.intersectionsMs+=performance.now()-intersectionStart;return result;}
+ const allBounds=ps=>{const p=ps.flat();return[Math.min(...p.map(p=>p[0])),Math.min(...p.map(p=>p[1])),Math.max(...p.map(p=>p[0])),Math.max(...p.map(p=>p[1]))]};const fb=allBounds(footAll),hb=allBounds(faceAll),bboxSeparation=Math.hypot(Math.max(0,fb[0]-hb[2],hb[0]-fb[2]),Math.max(0,fb[1]-hb[3],hb[1]-fb[3]));
+ const witness=intersectionWitness(footAll,faceAll);const result={receiverKind:descriptor.kind,receiverPoseSample:descriptor.pose,receiverFloorLift:descriptor.floorLift,faceLocalFill:faceLocalFill,supported:true,target:'head',point:witness?[witness[0],-witness[1]]:null,receiver:[[ellipse.center[0],-ellipse.center[1]]],radius:0,poseSample:pose.joints,renderFrame:{time,tick:battle?.tick??null,attPhysicalRoot:att.x,defPhysicalRoot:def.x,attShownRoot:ax,defShownRoot:dx,attDrawX:drawX(ax),defDrawX:drawX(dx),attFace:af,defFace:df,actionElapsed:att.action.elapsed,sourceElapsed:pose.sourceElapsed,receiverMotionTime:def.motionTime,poseClock:pose.clock},bboxSeparation,geometry:'Unchanged actual painter rear-quarter fill/stroke versus anatomical native face fill/stroke; no hair; axe-only limited hookup; unsupported receivers blocked explicitly',tolerance,sourceIndex:pose.sourceIndex,reachesFill:setsIntersect(footFill,faceFill),reaches:!!witness,footFillFaceOutline:setsIntersect(footFill,faceAll),lineFaceFill:line.some(p=>faceFill.some(poly=>inside(p,poly))),lineFaceOutline:line.some(p=>faceAll.some(poly=>inside(p,poly))),footFillEllipse:footFill.some(poly=>punchTouchesSurface(poly,ellipse)),footOutlineEllipse:footAll.some(poly=>punchTouchesSurface(poly,ellipse)),lineEllipse:line.some(p=>((p[0]-ellipse.center[0])/5.5)**2+((p[1]-ellipse.center[1])/7.6)**2<=1),alphaValues:[...new Set(footRecords.map(r=>r.alpha))],quarterLimitCanonical:-.5,footFillPolygons:footFill.length,footStrokePolygons:footAll.length-footFill.length,faceStrokeWidth:hc.records.find(r=>r.kind==='stroke')?.lineWidth??0,footStrokeWidths:[...new Set(fc.records.filter(r=>r.kind==='stroke').map(r=>r.lineWidth))]};profile.intersectionsMs+=performance.now()-intersectionStart;return result;
+}
+
+let cache=new WeakMap(),profile={calls:0,hits:0,misses:0,keyMs:0,cloneMs:0,poseAndFootPaintMs:0,footClipMs:0,headPaintMs:0,intersectionsMs:0,totalMs:0};
+export function resetContourProfile(clearCache=true){profile=Object.fromEntries(Object.keys(profile).map(k=>[k,0]));if(clearCache)cache=new WeakMap();}
+export function contourProfile(){return structuredClone(profile);}
+export function contourAxeDiagnostic(att,def,time=0,options={}){const start=performance.now();profile.calls++;const{battle=null,tolerance=1e-4,cacheEnabled=true,diagnostics=true}=options;let key=null;
+ if(cacheEnabled){const t=performance.now();key=JSON.stringify([att,def,time,tolerance,diagnostics,battle?.tick,battle?.done,battle?.events,battle?.fighters?.indexOf(att),battle?.fighters?.indexOf(def)]);profile.keyMs+=performance.now()-t;const old=cache.get(att)?.get(def);if(old?.key===key){profile.hits++;const t=performance.now(),result=structuredClone(old.result);profile.cloneMs+=performance.now()-t;profile.totalMs+=performance.now()-start;return result;}}
+ profile.misses++;const result=uncachedContour(att,def,time,options);if(cacheEnabled){let pair=cache.get(att);if(!pair){pair=new WeakMap;cache.set(att,pair)}const t=performance.now();pair.set(def,{key,result:structuredClone(result)});profile.cloneMs+=performance.now()-t;}profile.totalMs+=performance.now()-start;return result;
+}
+
+export function contourAxePredicate(att,def,time=0,options={}){return contourAxeDiagnostic(att,def,time,{...options,diagnostics:false});}
+
+// Planning reads these same surfaces. It cannot grant or alter an impact.
+export function axePlanningSurfaces(att,def,time,battle){return uncachedContour(att,def,time,{battle,diagnostics:false,surfacesOnly:true});}

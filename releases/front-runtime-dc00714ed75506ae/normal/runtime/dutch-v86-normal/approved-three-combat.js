@@ -1,0 +1,72 @@
+import {REVIEWED_THREE_DATA as DATA} from './reviewed-three-data.js';
+import {reviewedSample,paintReviewedThree} from './reviewed-three-motion.js';
+import {fromParams,params,receiverPose,pointSegmentDistance} from './approved-2d-core.js';
+import {paintThreeBody} from './approved-three-body.js';
+// Existing identities/stats. Source-phase anchors below are reversible GAME timing,
+// not measured impact, natural execution speed, or a claim of recovered anatomy.
+export const THREE_COMBAT=Object.freeze({
+ horizontalelbow:{source:'horizontal_elbow',range:67,windup:.29,active:.18,recovery:.36,entry:.10,exit:.12,anchors:[35,41],originY:0,point:'near_elbow',radius:3,target:'head',near:'A',support:'A',extension:false},
+ bolopunch:{source:'bolo',range:96,windup:.38,active:.19,recovery:.39,entry:.10,exit:.12,anchors:[13,18],originY:-55,point:'near_hand',radius:2.5,target:'head',near:'A',support:'A',extension:true},
+});
+export const HORIZONTAL_ELBOW_METADATA=Object.freeze({name:'横肘',style:'ラウェイ',target:'head',type:'punch',point:'near_elbow',radius:3,power:19,range:67,cost:15,windup:.29,active:.18,recovery:.36,description:'承認された横肘。既存大会ID・威力・間合い・消費を保持した独立統合候補。'});
+export const THREE_ENABLED_IDS=Object.freeze(['horizontalelbow','bolopunch']);
+export const threeCombat=id=>typeof id==='string'&&THREE_ENABLED_IDS.includes(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ease=x=>{x=clamp(x);return x*x*(3-2*x)},clone=x=>structuredClone(x),neutral=()=>fromParams(params(receiverPose())),meta=new WeakMap();
+export const threeBlend=(a,b,q)=>q<=0?clone(a):q>=1?clone(b):Object.fromEntries(Object.keys(a).map(k=>[k,a[k].map((v,i)=>v+(b[k][i]-v)*q)]));
+export const THREE_TIMING_VARIANT=['source-intervals-v2','reference-clock-v2','phase-fit-existing-windows-v1'].includes(globalThis.WFJ_THREE_TIMING)?globalThis.WFJ_THREE_TIMING:'reference-clock-v2';
+export const THREE_REFERENCE_BASELINE=Number(globalThis.WFJ_THREE_BASELINE)||.5;
+export function threeTiming(id,variant=THREE_TIMING_VARIANT){const c=THREE_COMBAT[id],n=(c.extension?DATA.bolo31:DATA[c.source]).frames.length-1,fps=DATA[c.source].fps;const rate=variant==='reference-clock-v2'?THREE_REFERENCE_BASELINE:1;return ['source-intervals-v2','reference-clock-v2'].includes(variant)?{windup:c.entry+c.anchors[0]/fps*rate,active:(c.anchors[1]-c.anchors[0])/fps*rate,recovery:(n-c.anchors[1])/fps*rate+c.exit}: {windup:c.windup,active:c.active,recovery:c.recovery};}
+export function applyThreeTiming(techniques){for(const t of techniques)if(threeCombat(t.id))Object.assign(t,threeTiming(t.id));}
+export function threeClock(id,elapsed,variant=THREE_TIMING_VARIANT){const c=THREE_COMBAT[id];if(!c)throw Error('unknown motion');const frames=c.extension?DATA.bolo31.frames:DATA[c.source].frames,n=frames.length-1,timing=threeTiming(id,variant),total=timing.windup+timing.active+timing.recovery,t=clamp(Number(elapsed)||0,0,total),end=total-c.exit;
+ if(t<c.entry)return{stage:'join-in',index:0,weight:ease(t/c.entry),sourceElapsed:0,total};
+ if(t>end)return{stage:'join-out',index:n,weight:1-ease((t-end)/c.exit),sourceElapsed:n/DATA[c.source].fps,total};
+ if(['source-intervals-v2','reference-clock-v2'].includes(variant)){const rate=variant==='reference-clock-v2'?THREE_REFERENCE_BASELINE:1,index=(t-c.entry)/rate*DATA[c.source].fps;return{stage:'approved-core',index,weight:1,sourceElapsed:(t-c.entry)/rate,total,sourcePerActionSecond:1/rate};}
+ if(variant==='source-linear-existing-total-v1'){const index=(t-c.entry)/(end-c.entry)*n;return{stage:'approved-core',index,weight:1,sourceElapsed:index/DATA[c.source].fps,total,sourcePerActionSecond:n/(end-c.entry)/DATA[c.source].fps};}
+ const knots=[[c.entry,0],[c.windup,c.anchors[0]],[c.windup+c.active,c.anchors[1]],[end,n]];let k=knots.findIndex(v=>v[0]>=t);k=Math.max(1,k);const a=knots[k-1],b=knots[k],index=a[1]+(b[1]-a[1])*(t-a[0])/(b[0]-a[0]);return{stage:'approved-core',index,weight:1,sourceElapsed:index/DATA[c.source].fps,total,sourcePerActionSecond:(b[1]-a[1])/(b[0]-a[0])/DATA[c.source].fps};}
+function baseFor(id){const j=neutral();if(id==='crouchlowkick')for(const part of ['hip','knee','ankle','heel','toe'])[j['support_'+part],j['strike_'+part]]=[j['strike_'+part],j['support_'+part]];return j;}
+export function threeAliases(id){const c=THREE_COMBAT[id],other=s=>s==='A'?'B':'A',out={center:'pelvis',chest:'neck',head:'head'};for(const[role,side]of[['near',c.near],['far',other(c.near)]])for(const part of['shoulder','elbow','wrist','hand'])out[role+'_'+part]=part+side;for(const[role,side]of[['support',c.support],['strike',other(c.support)]])for(const part of['hip','knee','ankle','heel','toe'])out[role+'_'+part]=part+side;return out;}
+export function threePose(id,elapsed=0,{variant=THREE_TIMING_VARIANT}={}){const c=THREE_COMBAT[id],clock=threeClock(id,elapsed,variant),base=baseFor(id),originX=base.support_toe[0]-DATA[c.source].frames[0].display_points['toe'+c.support][0],s=reviewedSample(c.source,clock.sourceElapsed,{entry:0,recovery:1,extension:c.extension,originY:c.originY,originX}),j={},provenance={},aliases=threeAliases(id);
+ for(const[key,source]of Object.entries(aliases)){const p=s.points[source];j[key]=p?[p[0],-p[1]]:clone(base[key]);provenance[key]=p?'reviewed-display':'unobserved-neutral-runtime-proxy';}
+ const core=clone(j),joints=clock.stage==='approved-core'?j:threeBlend(base,j,clock.weight);
+ const p={joints,core,displayJoin:clock.stage==='approved-core'?null:{kind:'source',a:base,b:core,q:clock.weight},display:s,aliases,provenance,...clock,frameIndex:s.index,sourceTime:s.sourceA.source_time,customWeight:clock.weight,approvedDuration:(c.extension?30:DATA[c.source].frames.length-1)/DATA[c.source].fps,coreDuration:clock.total-c.entry-c.exit};meta.set(joints,{id,pose:p});return p;
+}
+// Missing reviewed contact points can never cause a hit. Neutral runtime proxies
+// exist only for legacy bookkeeping/KO APIs and are never valid attack surfaces.
+export function threeContact(id,j,d,gap,face=1,defFace=-1){const c=THREE_COMBAT[id],p=meta.get(j)?.pose,valid=p?.provenance[c.point]==='reviewed-display'&&p?.stage==='approved-core',point=valid?[j[c.point][0]*face,j[c.point][1]]:null;
+ const tf=v=>[gap+v[0]*defFace,v[1]],segments=c.target==='head'?(d.head?[[tf(d.head),tf(d.head),7]]:[]):['support','strike'].flatMap(s=>d[s+'_knee']&&d[s+'_ankle']?[[tf(d[s+'_knee']),tf(d[s+'_ankle']),5]]:[]);
+ let distance=Infinity,receiver=[];for(const[a,b]of segments){const dist=valid?pointSegmentDistance(point,a,b):Infinity;if(dist<distance){distance=dist;receiver=[a,b]}}
+ const r=c.target==='head'?7:5;return{reaches:valid&&Math.abs(gap)<=(c.range+12)*.41&&distance<=r+c.radius+.04,distance,radius:c.radius,point,receiver,target:c.target,contactKnown:valid,rangeEligible:Math.abs(gap)<=(c.range+12)*.41,provenance:valid?'reviewed projected point vs existing game capsule':'unknown source point or off-core; no contact',sourceElapsed:p?.sourceElapsed??null};}
+export const threeInterrupted=(s,age)=>threeBlend(s.joints,s.neutral,ease(age/(s.duration||.2)));
+export function threeReceiving(f,time){if(threeCombat(f.action?.technique))return{id:f.action.technique,...threePose(f.action.technique,f.action.elapsed)};const s=f.interruptedStrike;if(!threeCombat(s?.action?.technique))return null;const p=threePose(s.action.technique,s.action.elapsed),q=ease((time-s.createdTime)/(s.duration||.2)),g=threePaintGeometry(s.action.technique,p);return{id:s.action.technique,...p,joints:threeInterrupted(s,time-s.createdTime),displayJoin:{a:g.joints,feetA:g.feet,b:s.neutral,q},transitionDisplay:true,customWeight:p.customWeight*(1-q)};}
+export function threePaintGeometry(id,p){
+ const w=p.customWeight,j=inferredThreeDisplay(id,p);
+ const points={...p.display.points};for(const[k,name]of Object.entries(p.aliases))points[name]=p.provenance[k]==='reviewed-display'?[j[k][0],-j[k][1]]:null;
+ const feet={};for(const[side,role]of[['A','support'],['B','strike']]){const poly=p.display.feet[side],a=p.core[role+'_ankle'],b=j[role+'_ankle'],u=p.core[role+'_toe'].map((v,i)=>v-p.core[role+'_heel'][i]),v=j[role+'_toe'].map((v,i)=>v-j[role+'_heel'][i]),angle=Math.atan2(v[1],v[0])-Math.atan2(u[1],u[0]),scale=Math.hypot(...v)/(Math.hypot(...u)||1);feet[side]=poly?.map(([x,y])=>{const dx=x-a[0],dy=-y-a[1];return[b[0]+scale*(dx*Math.cos(angle)-dy*Math.sin(angle)),-b[1]-scale*(dx*Math.sin(angle)+dy*Math.cos(angle))]})??null;}
+ const mappedFeet={support:feet.A,strike:feet.B},hidden=[],inferredFeet=[];for(const side of ['support','strike']){const generic=genericDisplayFoot(j,side);if(!mappedFeet[side]){mappedFeet[side]=inferredDisplayFoot(j,side);inferredFeet.push(side);}else mappedFeet[side]=mappedFeet[side].map((v,i)=>v.map((x,k)=>generic[i][k]+(x-generic[i][k])*w));}if(p.displayJoin){const x=p.displayJoin,endJ=x.kind==='source'?inferredThreeDisplay(id,{...p,joints:p.core,displayJoin:null,customWeight:1}):x.b,u=ease(clamp((x.q-.12)/.76));for(const [side,letter]of[['support','A'],['strike','B']]){const sourceAt=target=>{const poly=p.display.feet[letter];if(!poly)return inferredDisplayFoot(target,side);const a=p.core[side+'_ankle'],b=target[side+'_ankle'];return poly.map(v=>[v[0]+b[0]-a[0],v[1]-b[1]+a[1]]);},start=x.feetA?.[side]??(x.kind==='source'?genericDisplayFoot(x.a,side):sourceAt(x.a)),end=x.kind==='source'?sourceAt(endJ):genericDisplayFoot(endJ,side),h=x.a[side+'_heel'].map((v,i)=>v+(endJ[side+'_heel'][i]-v)*u),offset=[j[side+'_heel'][0]-h[0],-j[side+'_heel'][1]+h[1]];mappedFeet[side]=start.map((v,i)=>v.map((n,k)=>n+(end[i][k]-n)*u+(i===3?(k===0?j[side+'_ankle'][0]-(x.a[side+'_ankle'][0]+(endJ[side+'_ankle'][0]-x.a[side+'_ankle'][0])*u):-j[side+'_ankle'][1]+(x.a[side+'_ankle'][1]+(endJ[side+'_ankle'][1]-x.a[side+'_ankle'][1])*u)):offset[k])));}}return{joints:j,feet:mappedFeet,hidden,weight:w,inferredFeet};
+}
+
+// Inferred display-only occlusion completion. Source nulls and collision joints stay unchanged.
+export function inferredThreeDisplay(id,p){if(p.displayJoin){const x=p.displayJoin,b=x.kind==='source'?inferredThreeDisplay(id,{...p,joints:p.core,displayJoin:null,customWeight:1}):x.b;const j=boundedDisplayJoin(x.a,b,x.q,x.fall);if(!x.fall)for(const k of Object.keys(j)){if(p.provenance[k]!=='reviewed-display')continue;if(/^(support|strike)_(knee|ankle)$/.test(k)){j[k]=clone(p.joints[k]);continue;}const delta=j[k].map((v,i)=>v-p.joints[k][i]),length=Math.hypot(...delta);if(length>8)j[k]=p.joints[k].map((v,i)=>v+delta[i]*8/length);}return j;}const j=clone(p.joints),c=THREE_COMBAT[id],frames=(c.extension?DATA.bolo31:DATA[c.source]).frames;
+ for(const [key,name] of Object.entries(p.aliases)){if(p.provenance[key]==='reviewed-display')continue;let before=null,after=null;for(let i=Math.floor(p.index);i>=0;i--)if(frames[i]?.display_points[name]){before=i;break;}for(let i=Math.ceil(p.index);i<frames.length;i++)if(frames[i]?.display_points[name]){after=i;break;}if(before===null&&after===null)continue;before??=after;after??=before;const q=after===before?0:(p.index-before)/(after-before),a=frames[before].display_points,b=frames[after].display_points;const anchor=a.pelvis&&b.pelvis?'pelvis':'chest',cur=j[anchor==='pelvis'?'center':'chest'];j[key]=[0,1].map(axis=>{const rel=(a[name][axis]-a[anchor][axis])*(1-q)+(b[name][axis]-b[anchor][axis])*q;return p.joints[key][axis]*(1-p.customWeight)+(cur[axis]+rel*(axis===1?-1:1))*p.customWeight});}
+ return j;}
+
+// R3 inferred display join only. Feet reposition while lifted, with planted
+// endpoint intervals. Neither source/core nor contact/snapshot joints are edited.
+export function boundedDisplayJoin(a,b,q,fall=false){q=clamp(q);if(q===0)return clone(a);if(q===1)return clone(b);const j=threeBlend(a,b,q),u=ease(clamp((q-.12)/.76));for(const side of ['support','strike']){const delta=Math.hypot(b[side+'_toe'][0]-a[side+'_toe'][0],b[side+'_heel'][0]-a[side+'_heel'][0]),lift=Math.min(fall?12:8,delta*.35)*Math.sin(Math.PI*u);const old=clone(j[side+'_ankle']);for(const part of ['ankle','heel','toe']){const key=side+'_'+part;j[key]=a[key].map((v,i)=>v+(b[key][i]-v)*u+(i===1?lift:0));}for(const part of ['ankle','heel','toe']){const key=side+'_'+part,ref=a[key].map((v,i)=>v+(b[key][i]-v)*q),d=j[key].map((v,i)=>v-ref[i]),length=Math.hypot(...d),cap=fall?12:8;if(length>cap)j[key]=ref.map((v,i)=>v+d[i]*cap/length);}for(let axis=0;axis<2;axis++)j[side+'_knee'][axis]+=.4*(j[side+'_ankle'][axis]-old[axis]);}return j;}
+
+export function paintThreeCombat(c,id,p,palette,alt=false,flash=[],appearance=null){const g=threePaintGeometry(id,p);paintThreeBody(c,g.joints,1,alt,flash,appearance,0,id==='bolopunch'?{...g,footFloorRegistration:true}:g);}
+export function genericDisplayFoot(j,side){const a=[j[side+'_ankle'][0],-j[side+'_ankle'][1]],h=[j[side+'_heel'][0],-j[side+'_heel'][1]],t=[j[side+'_toe'][0],-j[side+'_toe'][1]],v=[t[0]-h[0],t[1]-h[1]],l=Math.hypot(...v)||1;let n=[v[1]/l,-v[0]/l];if(n[0]*(a[0]-h[0])+n[1]*(a[1]-h[1])<0)n=n.map(v=>-v);return[h,t,t.map((x,i)=>x+2*n[i]),[a[0],a[1]-2],h.map((x,i)=>x+3.5*n[i])];}
+
+// Source-null feet only: monotone sole-basis envelope prevents inferred polygon bow ties.
+export function inferredDisplayFoot(j,side){const h=[j[side+'_heel'][0],-j[side+'_heel'][1]],t=[j[side+'_toe'][0],-j[side+'_toe'][1]],a=[j[side+'_ankle'][0],-j[side+'_ankle'][1]],v=t.map((x,i)=>x-h[i]),length=Math.hypot(...v)||1,u=v.map(x=>x/length);let n=[u[1],-u[0]];if(n[0]*(a[0]-h[0])+n[1]*(a[1]-h[1])<0)n=n.map(x=>-x);const along=clamp((a[0]-h[0])*u[0]+(a[1]-h[1])*u[1],0,length),height=Math.max(2,Math.min(8,Math.abs((a[0]-h[0])*n[0]+(a[1]-h[1])*n[1])));return[h,t,t.map((x,i)=>x+2*n[i]),h.map((x,i)=>x+along*u[i]+height*n[i]),h.map((x,i)=>x+3.5*n[i])];}
+
+// Collision-only native source samples prevent a narrow real elbow contact from
+// tunneling between CPU updates. No new pose, radius, active window or clock.
+export function threeResolutionSamples(id,previous,next){
+ if(!threeCombat(id)||!(next>previous))return[];
+ const c=THREE_COMBAT[id],fps=DATA[c.source].fps,variant=THREE_TIMING_VARIANT,timing=threeTiming(id),out=[],reference=variant==='reference-clock-v2',linear=['source-intervals-v2','reference-clock-v2'].includes(variant);
+ for(let frame=c.anchors[0];frame<c.anchors[1];frame++){
+  const t=linear?c.entry+frame/fps*(reference?THREE_REFERENCE_BASELINE:1):timing.windup+(frame-c.anchors[0])/(c.anchors[1]-c.anchors[0])*timing.active;
+  if(t>previous&&t<=next&&t>=timing.windup&&t<timing.windup+timing.active)out.push(t);
+ }return out;
+}

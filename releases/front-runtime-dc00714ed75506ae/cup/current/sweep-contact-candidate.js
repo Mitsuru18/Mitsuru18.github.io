@@ -1,0 +1,30 @@
+import {sweepFootPrimitives} from './sweep-candidate.js';
+const sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross=(a,b)=>a[0]*b[1]-a[1]*b[0],clamp=x=>Math.max(0,Math.min(1,x));
+function pointSegmentLegacy(p,a,b){const v=sub(b,a),q=clamp(dot(sub(p,a),v)/(dot(v,v)||1));return Math.hypot(...p.map((x,i)=>x-a[i]-q*v[i]));}
+function pointSegment(p,a,b){if(p.length!==2||a.length!==2||b.length!==2)return pointSegmentLegacy(p,a,b);const vx=b[0]-a[0],vy=b[1]-a[1],q=clamp(((p[0]-a[0])*vx+(p[1]-a[1])*vy)/((vx*vx+vy*vy)||1));return Math.hypot(p[0]-a[0]-q*vx,p[1]-a[1]-q*vy);}
+function inside(p,poly){let on=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if(pointSegment(p,a,b)<1e-9)return true;if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])on=!on;}return on;}
+function edges(poly){return poly.map((p,i)=>[p,poly[(i+1)%poly.length]]);}
+function intersects(a,b,c,d){const v=sub(b,a),w=sub(d,c),q=sub(c,a),den=cross(v,w);if(Math.abs(den)<1e-10)return Math.min(pointSegment(a,c,d),pointSegment(b,c,d),pointSegment(c,a,b),pointSegment(d,a,b))<1e-9;const t=cross(q,w)/den,u=cross(q,v)/den;return t>=0&&t<=1&&u>=0&&u<=1;}
+function polyPoly(a,b){for(const p of a)if(inside(p,b))return true;for(const p of b)if(inside(p,a))return true;for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++)if(intersects(a[i],a[(i+1)%a.length],b[j],b[(j+1)%b.length]))return true;return false;}
+function capsulePoly(c,p){return inside(c.a,p)||inside(c.b,p)||edges(p).some(([a,b])=>intersects(c.a,c.b,a,b)||Math.min(pointSegment(c.a,a,b),pointSegment(c.b,a,b),pointSegment(a,c.a,c.b),pointSegment(b,c.a,c.b))<=c.radius+1e-9);}
+// Conservative candidate rejection only. Exact legacy predicates below remain authoritative.
+// No retained cache: painter polygons can be rebuilt or mutated between queries.
+function primitiveBounds(p){
+ const points=p.kind==='polygon'?p.points:p.kind==='capsule'?[p.a,p.b]:p.kind==='circle'?[p.center]:null;
+ const radius=p.kind==='polygon'?0:p.radius;
+ if(!Array.isArray(points)||!points.length||!Number.isFinite(radius)||radius<0)return null;
+ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+ for(const point of points){if(!Array.isArray(point)||!Number.isFinite(point[0])||!Number.isFinite(point[1]))return null;if(point[0]<x0)x0=point[0];if(point[1]<y0)y0=point[1];if(point[0]>x1)x1=point[0];if(point[1]>y1)y1=point[1];}
+ return[x0-radius,y0-radius,x1+radius,y1+radius];
+}
+function definitelySeparated(a,b){
+ const x=primitiveBounds(a),y=primitiveBounds(b),padding=1e-7;
+ // Padding exceeds the existing 1e-9 boundary tolerance; it cannot add a contact.
+ return x&&y&&(x[0]>y[2]+padding||y[0]>x[2]+padding||x[1]>y[3]+padding||y[1]>x[3]+padding);
+}
+export function primitiveContact(a,b){if(definitelySeparated(a,b))return false;if(a.kind==='polygon'&&b.kind==='polygon')return polyPoly(a.points,b.points);if(a.kind==='capsule'&&b.kind==='polygon')return capsulePoly(a,b.points);if(a.kind==='polygon'&&b.kind==='capsule')return capsulePoly(b,a.points);if(a.kind==='circle')a={kind:'capsule',a:a.center,b:a.center,radius:a.radius};if(b.kind==='circle')b={kind:'capsule',a:b.center,b:b.center,radius:b.radius};if(a.kind==='capsule'&&b.kind==='capsule')return intersects(a.a,a.b,b.a,b.b)||Math.min(pointSegment(a.a,b.a,b.b),pointSegment(a.b,b.a,b.b),pointSegment(b.a,a.a,a.b),pointSegment(b.b,a.a,a.b))<=a.radius+b.radius+1e-9;if(a.kind==='capsule'&&b.kind==='polygon')return capsulePoly(a,b.points);if(a.kind==='polygon'&&b.kind==='capsule')return capsulePoly(b,a.points);throw Error('unsupported primitive');}
+export function commonPainterLegPrimitives(ops,face=-1,root=0){let leg=false;const out=[],tf=([x,y])=>[root+face*x*.5,y*.5];for(const o of ops){if(o[0]==='region'){leg=o[1]==='leg';continue;}if(!leg)continue;if(o[0]==='poly')out.push({kind:'polygon',points:o[1].map(tf)});if(o[0]==='line')out.push({kind:'capsule',a:tf(o[1]),b:tf(o[2]),radius:o[3]*.25});if(o[0]==='oval'){if(Math.abs(o[2]-o[3])>1e-9)throw Error('leg ellipse needs exact support');out.push({kind:'circle',center:tf(o[1]),radius:o[2]*.5});}}return out;}
+export function sweepContactDiagnostic(p,receiver,{face=1,root=0,active=false,rangeEligible=true}={}){const attack=sweepFootPrimitives(p,face,root),pairs=[];for(let i=0;i<attack.length;i++)for(let j=0;j<receiver.length;j++)if(primitiveContact(attack[i],receiver[j]))pairs.push([i,j]);return{reaches:active&&rangeEligible&&pairs.length>0,geometryOverlaps:pairs.length>0,pairs,attack,receiver,active,rangeEligible,target:'leg',coordinateSystem:'native arena pixels; shared painter outer .5 included',geometryKnown:true,sourceObserved:false,registeredInEngine:false};}
+
+export function painterRegionSurfaces(ops,target,face=1,root=0){let region=null;const out=[],tf=([x,y])=>[root+face*x*.5,y*.5];for(const o of ops){if(o[0]==='region'){region=o[1];continue;}if(region!==target)continue;if(o[0]==='poly')out.push({kind:'polygon',points:o[1].map(tf)});else if(o[0]==='oval')out.push({kind:'ellipse',center:tf(o[1]),rx:o[2]*.5,ry:o[3]*.5,angle:face*o[5]});}return out;}
+export function polygonTouchesSurface(poly,s){if(s.kind==='polygon')return primitiveContact({kind:'polygon',points:poly},s);const a=-(s.angle||0),c=Math.cos(a),z=Math.sin(a),p=poly.map(v=>{const x=v[0]-s.center[0],y=v[1]-s.center[1];return[(c*x-z*y)/s.rx,(z*x+c*y)/s.ry];});return primitiveContact({kind:'polygon',points:p},{kind:'circle',center:[0,0],radius:1});}

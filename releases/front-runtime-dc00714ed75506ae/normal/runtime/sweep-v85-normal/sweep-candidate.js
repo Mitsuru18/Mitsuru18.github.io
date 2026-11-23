@@ -1,0 +1,31 @@
+import{paintSweepHead}from'./sweep-head/view.js';
+import {SWEEP_JOINS as J} from './sweep-join-data.js';
+import {SWEEP_CORE as D} from './sweep-core-data.js';
+import {threeBodyOperations} from './approved-three-body.js';
+export const SWEEP_GEOMETRY_SCOPE='R49 frozen generated3D,113keys+112midpoints; not source3D recovery';
+export const SWEEP_CLOCK_PROPOSAL=Object.freeze({entryAction:.1,holdAction:.1,returnAction:.15,activeFirst:74,activeEndExclusive:83,sourceAdvancePerActionSecond:2,holdLast:59,sourceFirst:0,sourceLast:112,gameRate:'existing motionRate=.5*speed',entryReturnValidated:true});
+const T=D.sourceTimes,origin=T[0],span=T[112]-T[59],coreStart=.2,coreEnd=coreStart+span/2,total=coreEnd+.15;
+export const SWEEP_TIMING=Object.freeze({windup:coreStart+(T[74]-T[59])/2,active:(T[83]-T[74])/2,recovery:total-(coreStart+(T[83]-T[59])/2),total});
+export const SWEEP_META=Object.freeze({id:'crouchlowkick',name:'前掃腿',target:'leg',type:'kick',power:16,range:112,cost:13,learnCost:95,swayable:false,...SWEEP_TIMING,generatedFixed3D:true});
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),mix=(a,b,q)=>a+(b-a)*q;
+function sourceIndex(t){let i=0;while(i<112&&T[i+1]<=t+1e-11)i++;return i===112?112:i+(t-T[i])/(T[i+1]-T[i]);}
+export function sweepClock(elapsed=0){
+ const t=clamp(Number(elapsed)||0,0,total);let index,stage;
+ if(t<.1){index=0;stage='entry';}
+ else if(t<.2){index=59*(t-.1)/.1;stage='compressed-preparation';}
+ else if(t<coreEnd){index=sourceIndex(T[59]+(t-.2)*2);stage='generated-source-core';}
+ else {index=112;stage=t>=total?'done':'return';}
+ const phase=t<SWEEP_TIMING.windup?'windup':t<SWEEP_TIMING.windup+SWEEP_TIMING.active?'active':t>=total?'done':'recovery';
+ return {elapsed:t,index,stage,phase,total,sourceTime:T[Math.floor(index)]+(index-Math.floor(index))*((T[Math.min(112,Math.floor(index)+1)]??T[112])-T[Math.floor(index)]),entryReturnValidated:true};
+}
+export function sweepResolutionKnots(lo,hi){const out=[];for(let i=74*2;i<=83*2;i++){const k=i/2,a=Math.floor(k),t=T[a]+(k-a)*(T[Math.min(a+1,112)]-T[a]),x=coreStart+(t-T[59])/2;if(x>=lo-1e-10&&x<=hi+1e-10)out.push(x);}return out;}
+const project=v=>D.camera.map(r=>r.reduce((a,x,i)=>a+x*v[i],0));
+export function sweepFramePose(p,extra={}){const xyz=Object.fromEntries(Object.entries(p.joints3D).map(([n,v])=>[n,project(v)])),joints=Object.fromEntries(Object.entries(xyz).map(([n,v])=>[n,v.slice(0,2)])),feet=Object.fromEntries(Object.entries(p.feet).map(([n,v])=>[n,{vertices:v.vertices.map(project),profile:v.profile.map(project)}]));const h=joints.head.map((x,i)=>x-joints.chest[i]);return {joints,rig3D:p.joints3D,feet,headTilt:Math.atan2(h[0],h[1]),sourceIndex:p.index,generated:true,rawObserved:false,geometryKnown:true,registeredInEngine:true,...extra};}
+export function sweepSourcePose(index){index=clamp(index,0,112);const sample=Math.min(224,Math.floor(index*2+1e-9));return sweepFramePose(D.frames[sample],{sample,requestedIndex:index});}
+export function sweepPose(elapsed=0){const clock=sweepClock(elapsed);let p;if(clock.stage==='entry'){const sample=Math.min(20,Math.floor(clock.elapsed/.1*20+1e-9));p=sweepFramePose(J.entry[sample],{sample,join:'entry'});}else if(clock.stage==='return'||clock.stage==='done'){const sample=Math.min(30,Math.floor((clock.elapsed-coreEnd)/.15*30+1e-9));p=sweepFramePose(J.return[Math.max(0,sample)],{sample,join:'return'});}else p=sweepSourcePose(clock.index);return {...p,clock};}
+export const SWEEP_INTERNAL_ID='crouchlowkickR50';
+export const sweepActive=f=>f?.sweepEnabled===true&&f.action?.technique===SWEEP_INTERNAL_ID&&!f.finishFallJoints;
+export function convexHull(points){const p=[...points].sort((a,b)=>a[0]-b[0]||a[1]-b[1]),cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]),lo=[],hi=[];for(const q of p){while(lo.length>=2&&cross(lo.at(-2),lo.at(-1),q)<=1e-10)lo.pop();lo.push(q);}for(const q of [...p].reverse()){while(hi.length>=2&&cross(hi.at(-2),hi.at(-1),q)<=1e-10)hi.pop();hi.push(q);}return lo.slice(0,-1).concat(hi.slice(0,-1));}
+export function sweepOperations(p,alt=false,appearance=null){const feet=Object.fromEntries(Object.entries(p.feet).map(([n,f])=>[n,f.profile.map(([x,y])=>[x,-y])])),ops=threeBodyOperations(p.joints,1,alt,appearance,p.headTilt,{feet,hidden:[],weight:1,footFloorRegistration:false});for(const side of['support','strike']){const at=ops.findIndex(o=>o[0]==='foot'&&o[1]===side),poly=ops.findIndex((o,i)=>i>at&&o[0]==='poly'),line=ops.findIndex((o,i)=>i>at&&o[0]==='line'),f=p.feet[side];ops[poly][1]=convexHull(f.vertices.map(v=>v.slice(0,2))).map(([x,y])=>[2*x,-2*y]);ops[line][1]=f.profile[0].slice(0,2).map((v,i)=>2*v*(i===1?-1:1));ops[line][2]=f.profile[1].slice(0,2).map((v,i)=>2*v*(i===1?-1:1));}return ops;}
+export function paintSweep(c,p,{face=1,alt=false,appearance=null,flashes=[],headReference=null,visualHead=true}={}){c.save();c.scale(face*.5,.5);let alpha=c.globalAlpha,region=null;const tint=color=>{const f=flashes.find(f=>f.target===region);if(!f||!/^#[a-fA-F0-9]{6}$/.test(color))return color;return '#'+color.slice(1).match(/../g).map((n,i)=>Math.round(parseInt(n,16)*(1-f.alpha)+[255,38,56][i]*f.alpha).toString(16).padStart(2,'0')).join('')};for(const o of sweepOperations(p,alt,appearance)){c.contactPart=o.contactPart;if(o[0]==='region'){region=o[1];if(region==='head'&&visualHead){c.contactPart='head';paintSweepHead(c,p,{alt,appearance,flashes,reference:headReference});}continue;}if(region==='head'&&visualHead)continue;if(o[0]==='alpha')c.globalAlpha=alpha*o[1];else if(o[0]==='poly'){c.beginPath();o[1].forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=tint(o[2]);c.fill();}else if(o[0]==='oval'){c.beginPath();c.ellipse(...o[1],o[2],o[3],o[5],0,2*Math.PI);c.fillStyle=tint(o[4]);c.fill();}else if(o[0]==='line'){c.beginPath();c.moveTo(...o[1]);c.lineTo(...o[2]);c.lineWidth=o[3];c.strokeStyle=tint(o[4]);c.lineCap='round';c.stroke();}}c.restore();}
+export function sweepFootPrimitives(p,face=1,root=0){const o=sweepOperations(p),at=o.findIndex(z=>z[0]==='foot'&&z[1]==='strike'),poly=o.slice(at).find(z=>z[0]==='poly'),line=o.slice(at).find(z=>z[0]==='line'),tf=([x,y])=>[root+face*x*.5,y*.5];return[{kind:'polygon',points:poly[1].map(tf)},{kind:'capsule',a:tf(line[1]),b:tf(line[2]),radius:line[3]*.25}];}

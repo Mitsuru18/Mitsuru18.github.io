@@ -1,0 +1,3 @@
+// Exact supported historical/public ID sets; not a plugin registry.
+export const PUBLIC_MAIN_IDS=["jab","frontkick","cross","hook","roundkick","sidekick","lowkick","knee","highkick","spinkick","jumpkick","crouchpunch","crouchlowkick","crouch","jump","guard","sway","horizontalelbow","pushkick","dutchlow","elbow","bolopunch","spear","axekick","midguard","lowguard","bodyuppercut","uppercut"];
+export const CUP_IDS=["jab","frontkick","cross","hook","roundkick","sidekick","lowkick","knee","highkick","spinkick","jumpkick","crouchpunch","crouchlowkick","crouch","jump","guard","sway","uppercut","backfist","hammerfist","backkick","flyingknee","horizontalelbow","pushkick","dutchlow","elbow","bolopunch","spear","axekick","midguard","lowguard","bodyuppercut"];

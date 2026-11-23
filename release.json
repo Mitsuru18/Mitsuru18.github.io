@@ -1,0 +1,41 @@
+{
+  "version": "v99-tutorial-rebuild",
+  "generation": "front-runtime-dc00714ed75506ae",
+  "battleRevisions": [
+    "wfj-public-v71-guard0",
+    "wfj-frontkick-r9r1-guard0-r1",
+    "wfj-jump-r55-front57-guard0-r1",
+    "wfj-axe-r37-source-rate-1693354-v1",
+    "wfj-backfist-v75-r37-body3x-r1",
+    "wfj-sweep-r49-fixed3d-r1",
+    "wfj-dutchlow-r20-fixed3d-r1",
+    "wfj-dutchlow-r23-forward-return-r1",
+    "wfj-jump-split-v87-r2",
+    "wfj-pushkick-fulltrace-v92-r1",
+    "wfj-spear-dwl-v93-r1",
+    "wfj-cross-r5d-v94-r1",
+    "wfj-hook-r5-v96-r1",
+    "wfj-hammer-r2-v97-r1",
+    "wfj-flyingknee-air30-v98-r1"
+  ],
+  "combatRulesRevision": "wfj-guard-impact0-v71",
+  "baselinePublicCommit": "c6f8e6906158cff27181b7ca461ee332bef3d815",
+  "baselinePublicBuild": "b4e59674f6e0f1150bdd7e9654c7245d8672b61bef93c56a9117d7a1960f3ab3",
+  "creationPolicy": "v72-speed-sqrt20",
+  "sourceModuleGraphHash": "3b74dec5e900ce9d8bcb1aa946d20a1e5323224c273aa57a8bcc92324b4eec58",
+  "scope": "Native v98 screens; tutorial for new journeys only. Existing countries, ordinary rules, motions and tournament retained.",
+  "limits": [
+    "Actual iPhone performance is not measured; publication status is tracked by native Sites, separately from this artifact identity.",
+    "Home is a compact read-only navigation/status view; full fighter portrait/profile controls remain in the existing game screen.",
+    "Existing v83 gameplay/receiver/balance limits remain; no unpublished effects or sweep reader repair included.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance.",
+    "Monocular depth and obscured joints/head features are inferred; controlled finite timing/visual evidence does not establish broad balance or actual iPhone performance."
+  ]
+}

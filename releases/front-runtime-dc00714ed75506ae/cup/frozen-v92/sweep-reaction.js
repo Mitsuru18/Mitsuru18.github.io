@@ -1,0 +1,46 @@
+import{fallenPose,fallHeadTilt}from'./finish-motion.js';
+import{sweepActive,sweepPose,SWEEP_TIMING}from'./sweep-candidate.js';
+// R50 generated reaction only. Raw observations and the source clock are not changed.
+import {SWEEP_JOINS as J}from'./sweep-join-data.js';
+import{SWEEP_CORE as D}from'./sweep-core-data.js';
+import{sweepFramePose,sweepOperations}from'./sweep-candidate.js';
+const add=(a,b)=>a.map((x,i)=>x+b[i]),sub=(a,b)=>a.map((x,i)=>x-b[i]),mul=(a,q)=>a.map(x=>x*q),dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0),norm=a=>Math.hypot(...a),unit=a=>mul(a,1/(norm(a)||1)),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],clamp=(q,a=0,b=1)=>Math.max(a,Math.min(b,q)),ss=q=>(q=clamp(q))*q*(3-2*q),mix=(a,b,q)=>add(mul(a,1-q),mul(b,q));
+const project=v=>D.camera.map(r=>dot(r,v)),unproject=v=>[0,1,2].map(i=>D.camera.reduce((s,r,k)=>s+r[i]*v[k],0));
+function rotate(v,axis,a){return add(add(mul(v,Math.cos(a)),mul(cross(axis,v),Math.sin(a))),mul(axis,dot(axis,v)*(1-Math.cos(a))));}
+function dir(a,b,q){a=unit(a);b=unit(b);let ax=cross(a,b),s=norm(ax),c=clamp(dot(a,b),-1,1);if(s<1e-10){if(c>0)return a;ax=unit(cross(a,Math.abs(a[1])<.9?[0,1,0]:[1,0,0]));return rotate(a,ax,Math.PI*q);}return rotate(a,mul(ax,1/s),Math.atan2(s,c)*q);}
+function quat(f){const m=[0,1,2].map(i=>f.map(v=>v[i])),t=m[0][0]+m[1][1]+m[2][2];let q;if(t>0){const s=Math.sqrt(t+1)*2;q=[(m[2][1]-m[1][2])/s,(m[0][2]-m[2][0])/s,(m[1][0]-m[0][1])/s,s/4];}else{let i=m[1][1]>m[0][0]?1:0;if(m[2][2]>m[i][i])i=2;const j=(i+1)%3,k=(i+2)%3,s=Math.sqrt(1+m[i][i]-m[j][j]-m[k][k])*2;q=[0,0,0,0];q[i]=s/4;q[j]=(m[j][i]+m[i][j])/s;q[k]=(m[k][i]+m[i][k])/s;q[3]=(m[k][j]-m[j][k])/s;}return q;}
+function frame(a,b,t){let x=quat(a),y=quat(b),d=dot(x,y);if(d<0){y=mul(y,-1);d=-d;}let q;if(d>.999999)q=unit(mix(x,y,t));else{const w=Math.acos(clamp(d,-1,1));q=add(mul(x,Math.sin((1-t)*w)/Math.sin(w)),mul(y,Math.sin(t*w)/Math.sin(w)));}const v=q.slice(0,3),w=q[3],r=p=>add(p,mul(cross(v,add(cross(v,p),mul(p,w))),2));return[[1,0,0],[0,1,0],[0,0,1]].map(r);}
+function footFrame(f,ankle){const u=unit(sub(f.profile[1],f.profile[0])),n=unit(sub(sub(ankle,f.profile[0]),mul(u,4)));return[u,n,unit(cross(u,n))];}
+function foot(a,F){const profile=[[-4,-3],[6.9,-3],[6.9,-1],[0,2],[-4,.5]].map(([x,y])=>add(add(a,mul(F[0],x)),mul(F[1],y))),vertices=[-2.1,2.1].flatMap(z=>profile.map(p=>add(p,mul(F[2],z))));return{profile,vertices};}
+function bend(j,s){const h=j[s+'_hip'],a=j[s+'_ankle'],u=unit(sub(a,h)),v=sub(j[s+'_knee'],h);return unit(sub(v,mul(u,dot(v,u))));}
+function ik(h,a,pole){const v=sub(a,h),d=norm(v),u=unit(v),violation=Math.max(0,d-51,1-d),dc=clamp(d,1+1e-9,51-1e-9),x=(26*26-25*25+dc*dc)/(2*dc),r=Math.sqrt(Math.max(0,26*26-x*x)),n=unit(sub(pole,mul(u,dot(pole,u))));return{point:add(add(h,mul(u,x)),mul(n,r)),reachViolation:violation};}
+const rest=sweepFramePose(J.return.at(-1)),world=p=>Object.fromEntries(Object.entries(p.rig3D).map(([k,v])=>[k,project(v)]));
+export function sweepReturnPose(entry,elapsed,duration=.2){
+ const q=clamp(elapsed/duration);if(q===0)return{...entry,reaction:'fixed3D-return',reactionQ:0,reachViolation:0};if(q===1)return{...rest,reaction:'fixed3D-return',reactionQ:1,reachViolation:0};
+ const a=world(entry),b=world(rest),u=ss(q),root=mix(a.center,b.center,u);root[1]=q<.5?a.center[1]*(1-ss(q*2))+40*ss(q*2):40*(1-ss((q-.5)*2))+b.center[1]*ss((q-.5)*2);
+ const sp=dir(sub(a.chest,a.center),sub(b.chest,b.center),u),hd=dir(sub(a.head,a.chest),sub(b.head,b.chest),u),hip=dir(sub(a.strike_hip,a.support_hip),sub(b.strike_hip,b.support_hip),u),sh=dir(sub(a.near_shoulder,a.far_shoulder),sub(b.near_shoulder,b.far_shoulder),u);
+ const j={center:root,chest:add(root,mul(sp,30)),support_hip:sub(root,mul(hip,4)),strike_hip:add(root,mul(hip,4))};j.head=add(j.chest,mul(hd,14));j.near_shoulder=add(sub(j.chest,mul(sp,2)),mul(sh,4));j.far_shoulder=sub(sub(j.chest,mul(sp,2)),mul(sh,4));
+ let reachViolation=0;const feet={};
+ for(const s of['support','strike']){const z=clamp(s==='strike'?q*2:(q-.5)*2),w=ss(z),ankle=add(mix(a[s+'_ankle'],b[s+'_ankle'],w),[0,8*Math.sin(Math.PI*z),0]),F=frame(footFrame(entry.feet[s],a[s+'_ankle']),footFrame(rest.feet[s],b[s+'_ankle']),w),k=ik(j[s+'_hip'],ankle,dir(bend(a,s),bend(b,s),u));reachViolation=Math.max(reachViolation,k.reachViolation);feet[s]=foot(ankle,F);j[s+'_knee']=k.point;j[s+'_ankle']=ankle;j[s+'_heel']=feet[s].profile[0];j[s+'_toe']=feet[s].profile[1];}
+ for(const s of['near','far'])for(const [x,y,l]of[['shoulder','elbow',18],['elbow','wrist',17],['wrist','hand',3.5]])j[s+'_'+y]=add(j[s+'_'+x],mul(dir(sub(a[s+'_'+y],a[s+'_'+x]),sub(b[s+'_'+y],b[s+'_'+x]),u),l));
+ const raw={index:null,joints3D:Object.fromEntries(Object.entries(j).map(([k,v])=>[k,unproject(v)])),feet:Object.fromEntries(Object.entries(feet).map(([s,f])=>[s,{profile:f.profile.map(unproject),vertices:f.vertices.map(unproject)}]))};
+ return{...sweepFramePose(raw),reaction:'fixed3D-return',reactionQ:q,reachViolation,duration};
+}
+export function sweepPainterFloor(p,appearance=null){let maximum=-Infinity,worst=null;for(const o of sweepOperations(p,false,appearance)){if(o[0]==='oval'&&o[4]==='#314c4650')continue;let y;if(o[0]==='poly')y=Math.max(...o[1].map(v=>v[1]));else if(o[0]==='oval')y=o[1][1]+Math.hypot(o[2]*Math.sin(o[5]),o[3]*Math.cos(o[5]));else if(o[0]==='line')y=Math.max(o[1][1],o[2][1])+o[3]/2;else continue;if(y>maximum){maximum=y;worst=o[0];}}return{height:-maximum*.5,worst};}
+
+export function sweepReceiving(f,time=0){if(f.finishSweepKO)return f.finishSweepKO;if(f.hp<=0&&f.sweepKOEntry)return f.sweepKOEntry.pose;if(sweepActive(f))return sweepPose(f.action.elapsed);const r=f.sweepReaction;if(r&&time<=r.deadline+1e-9)return sweepReturnPose(r.pose,Math.max(0,time-r.createdTime),Math.max(1e-9,r.deadline-r.createdTime));return null;}
+export function captureSweepReceiving(f,time,tick,lethal=false){const p=sweepReceiving(f,time);if(!p)return null;const pose=structuredClone(p);if(lethal){f.sweepKOEntry={pose,rootX:f.x,facing:f.action?.facing??f.facing,createdTime:time,createdTick:tick};return f.sweepKOEntry;}const deadline=f.sweepReaction?.deadline>time?f.sweepReaction.deadline:time+.2;f.sweepReaction={pose,rootX:f.x,facing:f.action?.facing??f.facing,createdTime:time,createdTick:tick,deadline,policy:'exact captured3D; fixed-bone two-step return; original .2s continuation deadline'};return f.sweepReaction;}
+export function sweepKOPose(entry,seconds,{appearance=null,minX=-160,maxX=160}={}){
+ const t=Math.max(0,seconds),q=ss(t/.55),a=world(entry.pose);if(q===0)return{...entry.pose,stage:'sweep-ko-entry',floor:sweepPainterFloor(entry.pose,appearance),floorCorrection:0};
+ // One static native fallen target. No late moving-target rotation and no solver.
+ const target=fallenPose(entry.pose.joints,1.1,{minX,maxX}),b=Object.fromEntries(Object.entries(target).map(([k,v])=>[k,[...v,0]])),j={support_ankle:mix(a.support_ankle,b.support_ankle,q)},d=(x,y)=>dir(sub(a[y],a[x]),sub(b[y],b[x]),q),edge=(x,y,l)=>j[y]=add(j[x],mul(d(x,y),l));
+ edge('support_ankle','support_knee',25);edge('support_knee','support_hip',26);edge('support_hip','strike_hip',8);j.center=mul(add(j.support_hip,j.strike_hip),.5);edge('center','chest',30);edge('chest','head',14);edge('strike_hip','strike_knee',26);edge('strike_knee','strike_ankle',25);
+ const sp=unit(sub(j.chest,j.center)),sh=d('far_shoulder','near_shoulder');j.near_shoulder=add(sub(j.chest,mul(sp,2)),mul(sh,4));j.far_shoulder=sub(sub(j.chest,mul(sp,2)),mul(sh,4));for(const s of['near','far'])for(const[x,y,l]of[['shoulder','elbow',18],['elbow','wrist',17],['wrist','hand',3.5]])edge(s+'_'+x,s+'_'+y,l);
+ const feet={};for(const s of['support','strike']){const u=unit(sub(b[s+'_toe'],b[s+'_heel'])),n=unit(sub(sub(b[s+'_ankle'],b[s+'_heel']),mul(u,4))),F=frame(footFrame(entry.pose.feet[s],a[s+'_ankle']),[u,n,unit(cross(u,n))],q);feet[s]=foot(j[s+'_ankle'],F);j[s+'_heel']=feet[s].profile[0];j[s+'_toe']=feet[s].profile[1];}
+ const make=()=>sweepFramePose({index:null,joints3D:Object.fromEntries(Object.entries(j).map(([k,v])=>[k,unproject(v)])),feet:Object.fromEntries(Object.entries(feet).map(([s,f])=>[s,{profile:f.profile.map(unproject),vertices:f.vertices.map(unproject)}]))});
+ let p=make();p.headTilt=(1-q)*entry.pose.headTilt+q*fallHeadTilt(1.1);const floorBefore=sweepPainterFloor(p,appearance),entryFloor=sweepPainterFloor(entry.pose,appearance),targetFloor=Math.min(0,entryFloor.height)*(1-q),floorCorrection=targetFloor-floorBefore.height;
+ for(const[k,v]of Object.entries(j))if(!k.endsWith('_heel')&&!k.endsWith('_toe'))v[1]+=floorCorrection;for(const f of Object.values(feet))for(const v of [...f.profile,...f.vertices])v[1]+=floorCorrection;
+ // heel/toe share profile references above; avoid double translation of those aliases.
+ for(const s of['support','strike']){j[s+'_heel']=feet[s].profile[0];j[s+'_toe']=feet[s].profile[1];}
+ p=make();p.headTilt=(1-q)*entry.pose.headTilt+q*fallHeadTilt(1.1);return{...p,stage:'generated-sweep-fixed3D-ko',seconds:t,weight:q,floorBefore,floor:sweepPainterFloor(p,appearance),floorCorrection,policy:'fixed3D directions to one static existing fall target; same rigid feet; whole-body support translation is generated KO ground response, not source repair'};
+}
