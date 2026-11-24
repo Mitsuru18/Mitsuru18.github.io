@@ -737,7 +737,7 @@ function contextualTechnique(b,f,id){
  if(id!=='frontkick')return INDEX[id];
  const q=evaluateEntry(b,b.fighters.indexOf(f),INDEX.frontkick,ENTRY_CONTEXT,{force:true,actor:{traceRestRig:frontkickEntryRig({...f,action:null},b.time)}});
  f.frontkickVariantProof={at:b.time,tick:b.tick,spaceSafe:q.spaceSafe,reachable:q.reachable,reason:q.reason,assumption:q.assumption};
- return !q.pending&&!q.spaceSafe?FRONTKICK_LEGACY:INDEX.frontkick;
+ return FRONTKICK_LEGACY;
 }
 
 // Shared actual receiver joints, used by the axe contour predicate.
