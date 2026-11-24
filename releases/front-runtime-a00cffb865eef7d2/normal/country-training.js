@@ -3,10 +3,10 @@ import{ABILITY_RULES,validAbilities,awardAbilityProgress}from'./attributes.js';
 // Culture-inspired game activities; neither meals nor traditions imply real stat gains.
 export const TRAINING_RULES=Object.freeze({cost:40,xp:1,fightsBetween:3,xpPerLevel:ABILITY_RULES.fightsPerLevel});
 export const TRAINING_RANKS=Object.freeze([
- Object.freeze({id:'foundation',name:'無料の基礎修行',cost:0,outcomes:Object.freeze([{xp:1,percent:100}]),expected:1}),
- Object.freeze({id:'light',name:'気軽な修行',cost:40,outcomes:Object.freeze([{xp:1,percent:80},{xp:2,percent:20}]),expected:1.2}),
- Object.freeze({id:'standard',name:'じっくり修行',cost:80,outcomes:Object.freeze([{xp:1,percent:20},{xp:2,percent:60},{xp:3,percent:20}]),expected:2}),
- Object.freeze({id:'intense',name:'本格的な修行',cost:120,outcomes:Object.freeze([{xp:1,percent:10},{xp:2,percent:30},{xp:3,percent:40},{xp:4,percent:20}]),expected:2.7})
+ Object.freeze({id:'foundation',name:'基礎修行',cost:20,unlock:1,outcomes:Object.freeze([{xp:1,percent:100}]),expected:1}),
+ Object.freeze({id:'light',name:'気軽な修行',cost:40,unlock:2,outcomes:Object.freeze([{xp:1,percent:80},{xp:2,percent:20}]),expected:1.2}),
+ Object.freeze({id:'standard',name:'じっくり修行',cost:80,unlock:3,outcomes:Object.freeze([{xp:1,percent:20},{xp:2,percent:60},{xp:3,percent:20}]),expected:2}),
+ Object.freeze({id:'intense',name:'本格的な修行',cost:120,unlock:4,outcomes:Object.freeze([{xp:1,percent:10},{xp:2,percent:30},{xp:3,percent:40},{xp:4,percent:20}]),expected:2.7})
 ]);
 export const COUNTRY_TRAINING=Object.freeze({
  jp:{practice:'滝で心身を整える',meal:'そば',meals:['そば','おにぎり','天ぷら']},
@@ -38,7 +38,7 @@ export function normalizeLocalTraining(s){
 export function localTrainingQuote(s,{inBattle=false,rankId='light'}={}){
  const rank=rankFor(rankId),t=normalizeLocalTraining(s),remaining=Math.max(0,TRAINING_RULES.fightsBetween-(s.fights-t.lastFight)),country=s.country,unit=rankId==='foundation'?foundationExperience(s.abilities.level):trainingExperienceUnit(s.abilities.level),maxXp=(rank?.outcomes.at(-1).xp??0)*unit,levels=planExperience(s,maxXp)?.points;
  let reason=null;
- if(!rank)reason='rank';else if(!Number.isSafeInteger(s.money)||s.money<0||!Number.isSafeInteger(s.fights)||s.fights<0)reason='arithmetic';else if(!Object.hasOwn(COUNTRY_TRAINING,country))reason='country';else if(inBattle||s.pendingResult)reason='battle';else if(!validAbilities(s.abilities)||s.abilities.rule!==2||!s.abilities.confirmed)reason='abilities';else if(remaining)reason='fights';else if(s.money<rank.cost)reason='money';else if(!Number.isSafeInteger(t.sessions+1)||levels===undefined||!Number.isSafeInteger(s.abilities.earned+levels)||!Number.isSafeInteger(s.abilities.level+levels))reason='arithmetic';
+ if(!rank)reason='rank';else if(!Number.isSafeInteger(s.money)||s.money<0||!Number.isSafeInteger(s.fights)||s.fights<0)reason='arithmetic';else if(!Object.hasOwn(COUNTRY_TRAINING,country))reason='country';else if(inBattle||s.pendingResult)reason='battle';else if(!validAbilities(s.abilities)||s.abilities.rule!==2||!s.abilities.confirmed)reason='abilities';else if(s.abilities.level<(rank.unlock??1))reason='locked';else if(remaining)reason='fights';else if(s.money<rank.cost)reason='money';else if(!Number.isSafeInteger(t.sessions+1)||levels===undefined||!Number.isSafeInteger(s.abilities.earned+levels)||!Number.isSafeInteger(s.abilities.level+levels))reason='arithmetic';
  return{ok:!reason,reason,remaining,country,sessions:t.sessions,fights:s.fights,rankId:rank?.id??null,rankName:rank?.name??'',cost:rank?.cost??0,balanceAfter:s.money-(rank?.cost??0),experienceRevision:1,unit,level:s.abilities.level,progress:s.experience?.progress??null,xp:(rank?.outcomes[0].xp??0)*unit,xpMin:(rank?.outcomes[0].xp??0)*unit,xpMax:maxXp,expected:(rank?.expected??0)*unit,outcomes:(rank?.outcomes??[]).map(o=>({...o,xp:o.xp*unit})),...COUNTRY_TRAINING[country]};
 }
 function randomUnit(){if(globalThis.crypto?.getRandomValues){const a=new Uint32Array(1);globalThis.crypto.getRandomValues(a);return a[0]/4294967296}return Math.random()}
