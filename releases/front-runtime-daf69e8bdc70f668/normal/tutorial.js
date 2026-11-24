@@ -167,7 +167,7 @@ const GATES={
  intro:{view:'abilities',views:['abilities'],actions:ABILITY_ACTIONS},
  fight1:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  fight2:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
- allocate:{view:'home',views:['home','fighter-settings','abilities','result','received'],actions:['fighter-settings','abilities','home',...ABILITY_ACTIONS,'result','received','received-page','result-next']},
+ allocate:{view:'abilities',views:['home','fighter-settings','abilities','result','received'],actions:['fighter-settings','abilities','home',...ABILITY_ACTIONS,'result','received','received-page','result-next']},
  fight3:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  style:{view:'hub',views:['result','received','home','hub','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','styles','style-pick','style-save','style-cancel']},
  rematch:{view:'hub',views:FIGHT_VIEWS,actions:[...FIGHT_ACTIONS,'retry']},
