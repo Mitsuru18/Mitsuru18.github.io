@@ -167,11 +167,11 @@ const GATES={
  intro:{view:'abilities',views:['abilities'],actions:ABILITY_ACTIONS},
  fight1:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  fight2:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
- allocate:{view:'abilities',views:['abilities','result','received'],actions:[...ABILITY_ACTIONS,'result','received','received-page','result-next']},
+ allocate:{view:'home',views:['home','fighter-settings','abilities','result','received'],actions:['fighter-settings','abilities','home',...ABILITY_ACTIONS,'result','received','received-page','result-next']},
  fight3:{view:'hub',views:FIGHT_VIEWS,actions:FIGHT_ACTIONS},
  style:{view:'hub',views:['result','received','home','hub','styles'],actions:['back','result','received','received-page','result-next','retry','home','hub','opponent','prefight','styles','style-pick','style-save','style-cancel']},
  rematch:{view:'hub',views:FIGHT_VIEWS,actions:[...FIGHT_ACTIONS,'retry']},
- skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','candidate-preview','choose-skill','clear-slot','home','hub']},
+ skill:{view:'hub',views:['result','received','demo','skill-detail','equipment','candidates','home','fighter-settings','hub'],actions:['back','result','received','received-page','result-next','pending-motions','demo-next','demo-replay','demo-pause','demo-info','detail-back','preview-skill','skill-tab','skill-info','equipment','equipment-done','slot','candidate-page','candidate-preview','choose-skill','clear-slot','home','fighter-settings','hub']},
  training:{view:'home',views:['home','hub','local-training','local-training-story'],actions:['back','home','local-training','training-rank','training-start','training-skip']},
 };
 export function tutorialGate(s){
