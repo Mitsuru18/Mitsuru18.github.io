@@ -1,6 +1,6 @@
 {
   "version": "v99-tutorial-rebuild",
-  "generation": "front-runtime-a17a7486101e3cf1",
+  "generation": "front-runtime-1c57a92268f29f7e",
   "battleRevisions": [
     "wfj-public-v71-guard0",
     "wfj-frontkick-r9r1-guard0-r1",
@@ -22,7 +22,7 @@
   "baselinePublicCommit": "c6f8e6906158cff27181b7ca461ee332bef3d815",
   "baselinePublicBuild": "b4e59674f6e0f1150bdd7e9654c7245d8672b61bef93c56a9117d7a1960f3ab3",
   "creationPolicy": "v72-speed-sqrt20",
-  "sourceModuleGraphHash": "69d79924346d6bfa173f956123c72df24ec38070921865772042f21e8fc9ac85",
+  "sourceModuleGraphHash": "1311d3064c33890fae4814bc13fbc5220f93383efe955299eaaf1ed07b7a6af4",
   "scope": "Native v98 screens; tutorial for new journeys only. Existing countries, ordinary rules, motions and tournament retained.",
   "limits": [
     "Actual iPhone performance is not measured; publication status is tracked by native Sites, separately from this artifact identity.",
