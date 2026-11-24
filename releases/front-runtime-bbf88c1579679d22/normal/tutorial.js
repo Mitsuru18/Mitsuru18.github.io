@@ -117,6 +117,14 @@ const rigMargin=(b,want)=>{
 export function rigTutorialTicket(s,ticket,rt){
  const want=tutorialRigWant(s,ticket);
  if(!want||!rt?.createBattle||!rt?.finishBattle)return ticket;
+ // Fight 1 only: the stock 'balanced' AI keeps steering back to its planned
+ // technique's preferred range, so against the ever-advancing opener the
+ // player visibly retreats all fight long. Run the player's in-fight
+ // movement as 'pressure' instead — it fights from the present range rather
+ // than walking back to a preselected one. The save's fightStyle is NOT
+ // changed (the style step later still teaches switching), and the seed
+ // search below runs with this strategy, so the decided win is preserved.
+ if(s.tutorial.step==='fight1')ticket.strategy='pressure';
  let best=null;
  for(let i=0;i<TUTORIAL_RIG_SEED_LIMIT;i++){
   const seed=ticket.seed+i,b=rt.finishBattle(rt.createBattle({...ticket,seed}));
