@@ -1,6 +1,6 @@
 {
   "version": "v99-tutorial-rebuild",
-  "generation": "front-runtime-bc7072cc16bb4d15",
+  "generation": "front-runtime-581075b27f395d2b",
   "battleRevisions": [
     "wfj-public-v71-guard0",
     "wfj-frontkick-r9r1-guard0-r1",
@@ -22,8 +22,8 @@
   "baselinePublicCommit": "c6f8e6906158cff27181b7ca461ee332bef3d815",
   "baselinePublicBuild": "b4e59674f6e0f1150bdd7e9654c7245d8672b61bef93c56a9117d7a1960f3ab3",
   "creationPolicy": "v72-speed-sqrt20",
-  "sourceModuleGraphHash": "e1a9569c48fb81b06d30deab0c44952a76ab737983a5ecb27b3a9aad7ee892a3",
-  "scope": "Native v98 screens; tutorial for new journeys only. Existing countries, ordinary rules, motions and tournament retained.",
+  "sourceModuleGraphHash": "cb3fb23c9ac7ddd4b48478a30845a47ac37895f019588f6b5a0144dd0c965dc8",
+  "scope": "Native v98 screens; tutorial for new journeys only. World expanded to 35 countries; technique learn sources redistributed per the world35 plan; battle runtime, motions and tournament retained.",
   "limits": [
     "Actual iPhone performance is not measured; publication status is tracked by native Sites, separately from this artifact identity.",
     "Home is a compact read-only navigation/status view; full fighter portrait/profile controls remain in the existing game screen.",

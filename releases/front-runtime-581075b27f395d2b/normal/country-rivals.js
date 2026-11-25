@@ -14,8 +14,9 @@ export const rivalsThrough300=base=>Math.ceil((300-rivalAnchor(base))/5);
 export function rivalLevel(base,ordinal){const end=rivalsThrough300(base);return ordinal>=end?300+(ordinal-end)*5:rivalAnchor(base)+ordinal*5;}
 // Approved content can be appended here without changing IDs or any old lesson.
 // Empty until individual techniques and motions have been selected and accepted.
-// Candidate placement only: US巡回稽古 Lv50以上. No retroactive grant or automatic equip.
-export const ADVANCED_LESSONS=Object.freeze([Object.freeze({country:'us',minLevel:50,skill:'bodyuppercut',provisional:true}),Object.freeze({country:'mm',minLevel:50,skill:'horizontalelbow',provisional:true}),Object.freeze({country:'ph',minLevel:50,skill:'backfist',provisional:true})]);
+// World35 placement: one designated technique per listed country's 巡回稽古，
+// granted from the rival whose level first reaches minLevel. No retroactive grant or automatic equip.
+export const ADVANCED_LESSONS=Object.freeze([Object.freeze({country:'th',minLevel:17,skill:'sway'}),Object.freeze({country:'br',minLevel:22,skill:'sidekick'}),Object.freeze({country:'kr',minLevel:26,skill:'jump'}),Object.freeze({country:'fr',minLevel:36,skill:'knee'}),Object.freeze({country:'us',minLevel:46,skill:'hook'}),Object.freeze({country:'cn',minLevel:55,skill:'midguard'}),Object.freeze({country:'nl',minLevel:65,skill:'lowguard'}),Object.freeze({country:'mm',minLevel:74,skill:'crouchpunch'}),Object.freeze({country:'ng',minLevel:84,skill:'crouchlowkick'})]);
 // Existing canonical techniques retain their historical 2D eligibility. New IDs
 // need separate, reviewed motion acceptance, even if availableIn2D defaults true.
 export const BASE_LESSON_TECHNIQUE_IDS=Object.freeze(["jab","frontkick","cross","hook","roundkick","sidekick","lowkick","knee","highkick","spinkick","jumpkick","crouchpunch","crouchlowkick","crouch","jump","guard","sway","pushkick","dutchlow","elbow","bolopunch","spear","axekick","midguard","lowguard"]);
