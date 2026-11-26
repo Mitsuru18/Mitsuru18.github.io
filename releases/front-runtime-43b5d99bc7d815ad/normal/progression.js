@@ -1,5 +1,5 @@
 import {assertMainRuntimeState,resolveBattleRuntime,BATTLE_REVISIONS} from './battle-runtime-contract.js';
-import{freshTournamentGrowth,validTournamentGrowth,freshTournamentEvents,validTournamentEvents}from'./tournament-growth.js';
+import{freshTournamentGrowth,validTournamentGrowth,freshTournamentEvents,validTournamentEvents,TOURNAMENT_CATALOG,validTournamentEventEntries}from'./tournament-growth.js';
 import{freshExperience,validExperience,awardExperience,fightExperience,planExperience,legacyFightExperience}from'./experience.js';
 import{parseRival,countryRivals,opponentLevel,rivalLessons,createCountryRival,ADVANCED_LESSONS}from'./country-rivals.js';
 import{freshLocalTraining,normalizeLocalTraining}from'./country-training.js';
@@ -28,7 +28,13 @@ import{ACTIVE_SAVE_KEY}from'./save-profile.js';
 export const SAVE_KEY=ACTIVE_SAVE_KEY;
 export const GROWTH_RULES=Object.freeze({hpPerFirstWin:0,powerPerFirstWin:0,defensePerFirstWin:0,speedPerFirstWin:0});
 const freshGrowth=()=>({rule:3});
-export function newGame(country='jp'){return {version:9,tournamentEvents:freshTournamentEvents(),tournamentGrowth:freshTournamentGrowth(),experience:freshExperience(),localTraining:freshLocalTraining(),records:freshFightRecords(),rosterTravelRights:[],rosterRevision:WORLD_ROSTER_REVISION,fightStyle:'balanced',journeyStart:country,growth:freshGrowth(),abilities:freshAbilities(),courseRevision:COURSE_REVISION,legacyClears:[],legacyRankFloor:0,legacyFreeTravel:false,retiredSkills:[],pendingResult:null,country,visited:[country],money:0,mastery:0,known:['jab','frontkick'],equipped:['jab','frontkick'],pendingDemos:[],wins:[],titles:[],fights:0,nextId:1,rewarded:[],name:'旅する拳士',migrated:false,appearance:null,tutorial:null};}
+// In-page cups (rig22): career counters and the active run live in the main
+// save; the former standalone cup page is no longer the source of truth.
+const freshCupCareer=()=>({completed:0,nextGrandAt:0,serial:1,champions:[],eventEntries:[]});
+function validCupCareer(c){return c&&Number.isSafeInteger(c.completed)&&c.completed>=0&&Number.isSafeInteger(c.nextGrandAt)&&c.nextGrandAt>=0&&Number.isSafeInteger(c.serial)&&c.serial>=1&&Array.isArray(c.champions)&&c.champions.every(id=>Object.hasOwn(TOURNAMENT_CATALOG,id))&&validTournamentEventEntries(c.eventEntries??[]);}
+const validCupEntrant=e=>e&&typeof e.id==='string'&&typeof e.name==='string'&&e.points&&['power','speed','stamina'].every(k=>Number.isSafeInteger(e.points[k])&&e.points[k]>=0)&&Array.isArray(e.equipped)&&e.equipped.every(x=>typeof x==='string')&&typeof e.style==='string';
+function validCupRun(r){if(r==null)return true;return typeof r==='object'&&/^cup-\d+$/.test(r.id??'')&&Object.hasOwn(TOURNAMENT_CATALOG,r.mode)&&Number.isSafeInteger(r.round)&&r.round>=0&&r.round<=(r.mode==='grand'?3:2)&&Number.isSafeInteger(r.wins)&&r.wins>=0&&r.wins<=4&&['prepare','between','battle','finished'].includes(r.status)&&Array.isArray(r.entrants)&&(r.mode==='grand'?r.entrants.length===16:r.entrants.length===4)&&r.entrants.every(validCupEntrant)&&(r.mode!=='grand'||(Array.isArray(r.ids)&&r.ids.length>=1&&r.ids.every(id=>r.entrants.some(e=>e.id===id))))&&Array.isArray(r.results);}
+export function newGame(country='jp'){return {version:9,tournamentEvents:freshTournamentEvents(),tournamentGrowth:freshTournamentGrowth(),cupCareer:freshCupCareer(),cupRun:null,experience:freshExperience(),localTraining:freshLocalTraining(),records:freshFightRecords(),rosterTravelRights:[],rosterRevision:WORLD_ROSTER_REVISION,fightStyle:'balanced',journeyStart:country,growth:freshGrowth(),abilities:freshAbilities(),courseRevision:COURSE_REVISION,legacyClears:[],legacyRankFloor:0,legacyFreeTravel:false,retiredSkills:[],pendingResult:null,country,visited:[country],money:0,mastery:0,known:['jab','frontkick'],equipped:['jab','frontkick'],pendingDemos:[],wins:[],titles:[],fights:0,nextId:1,rewarded:[],name:'旅する拳士',migrated:false,appearance:null,tutorial:null};}
 export const canonicalDojo=id=>typeof id==='string'?id.replace(/^([a-z]{2})-([0-2])$/,'$1-dojo-$2'):null;
 export function hasWon(s,id){if(typeof id!=='string')return false;const canonical=canonicalDojo(id);if(s.wins.includes(canonical))return true;const alias=canonical.match(/^([a-z]{2})-dojo-([0-2])$/);return!!alias&&s.wins.includes(`${alias[1]}-${alias[2]}`);}
 const growthWinCount=s=>COUNTRIES.reduce((n,c)=>n+(s.legacyClears?.includes(c.id)?COURSE_COUNT:courseIds(c.id).filter(id=>hasWon(s,id)).length),0);
@@ -108,6 +114,11 @@ export function loadSave(raw){try{
  if(!validExperience(s.experience,s.abilities.level))return null;
  if(s.tournamentGrowth!==undefined&&!validTournamentGrowth(s.tournamentGrowth))return null;
  s.tournamentGrowth??=freshTournamentGrowth();
+ if(s.cupCareer!==undefined&&!validCupCareer(s.cupCareer))return null;
+ s.cupCareer??=freshCupCareer();
+ s.cupRun??=null;
+ if(!validCupRun(s.cupRun))s.cupRun=null;
+ if(s.cupRun?.status==='battle')s.cupRun.status='prepare';
  // Historical fights are not retroactively consumed. New events begin after migration.
  s.tournamentEvents??=freshTournamentEvents(s.fights,`legacy-${s.fights}-${s.nextId}`);
  if(!validTournamentEvents(s.tournamentEvents,s.fights))return null;
