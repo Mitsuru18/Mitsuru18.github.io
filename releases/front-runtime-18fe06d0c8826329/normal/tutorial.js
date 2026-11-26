@@ -192,12 +192,35 @@ export function tutorialGate(s){
 // action is unambiguous.
 export const TUTORIAL_GUIDES=Object.freeze({
  intro:'まずは強さの決め方を覚えよう。10ポイントを3つの能力に振り分けて、「この配分で確定」を押そう。',
+ fight1:'まずは試合だ。相手はもう選んである。「試合開始」を押して、戦いの流れを見てみよう。',
  fight2:'もう一勝しよう。相手に挑んで試合開始。勝てばレベルアップが見えてくる。',
- allocate:'レベルアップ！ 増えた1ポイントを好きな能力に振って、「この配分で確定」を押そう。',
+ allocate:'レベルアップ！ 「パラメータ配分へ」を押し、増えた1ポイントを振って「この配分で確定」を押そう。',
  fight3:'次は手強い相手。まずは今の戦い方のまま挑んでみよう。',
- style:'力負けは戦い方の相性しだい。対戦準備で「あなた」を押し、ファイトスタイルをオフェンシブに変えてから再戦しよう。',
- rematch:'オフェンシブで再戦。同じ相手に、今度こそ勝とう。',
- skill:'新しい技「ストレート」を覚えた。見本で動きを見て、装備画面でセットを確認しよう。確認したら戻るボタンで完了。',
+ style:'力負けは戦い方の相性しだい。相手選択で「あなた」を押し、ファイトスタイルをオフェンシブに変えてから再戦しよう。',
+ skill:'新しい技「ストレート」を覚えた。見本で動きを見て、装備画面でセットを確認しよう。確認できたら「装備を確認した」から修行へ進もう。',
  training:'最後に修行を体験しよう。ホームの「修行に行く」から、「基礎修行」を選んで始めよう。',
 });
 export const tutorialGuideText=s=>tutorialActive(s)?TUTORIAL_GUIDES[s.tutorial.step]??'':'';
+
+// The control(s) the player should press NEXT, per step and view. The
+// renderer glows only these; other gate-allowed controls stay pressable
+// but unlit, so the guidance points at one next action without narrowing
+// the gate itself (single-path gates soft-locked the skill step before).
+// Returns null when the step has no specific primary for the view.
+const TUTORIAL_PRIMARY={
+ intro:{abilities:['ability-plus','ability-minus','ability-confirm']},
+ fight1:{hub:['fight'],result:['result-next'],received:['result']},
+ fight2:{hub:['fight'],result:['result-next'],received:['result']},
+ allocate:{result:['result-next'],abilities:['ability-plus','ability-minus','ability-confirm'],received:['result']},
+ fight3:{hub:['fight'],result:['result-next'],received:['result']},
+ style:{result:['styles','result-next'],styles:['style-pick','style-save'],received:['result']},
+ rematch:{hub:['fight'],result:['result-next'],received:['result']},
+ skill:{result:['result-next'],hub:['pending-motions','equipment'],demo:['demo-next'],equipment:['equipment-done'],candidates:['choose-skill','back']},
+ training:{home:['local-training'],'local-training':['training-rank','training-start'],'local-training-story':['training-skip','hub']},
+};
+export function tutorialPrimaryActions(s,view){
+ if(!tutorialActive(s))return null;
+ if(s.tutorial.step==='style'&&view==='hub')return new Set([s.fightStyle==='pressure'?'fight':'styles']);
+ const list=TUTORIAL_PRIMARY[s.tutorial.step]?.[view];
+ return list?new Set(list):null;
+}
