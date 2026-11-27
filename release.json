@@ -1,6 +1,6 @@
 {
   "version": "v99-tutorial-rebuild",
-  "generation": "front-runtime-34e387911f901813",
+  "generation": "front-runtime-2cb83b54f1752f69",
   "battleRevisions": [
     "wfj-public-v71-guard0",
     "wfj-frontkick-r9r1-guard0-r1",
@@ -22,7 +22,7 @@
   "baselinePublicCommit": "c6f8e6906158cff27181b7ca461ee332bef3d815",
   "baselinePublicBuild": "b4e59674f6e0f1150bdd7e9654c7245d8672b61bef93c56a9117d7a1960f3ab3",
   "creationPolicy": "v72-speed-sqrt20",
-  "sourceModuleGraphHash": "ef5e8ae3823f555a33fc7cbdc4d8f99bea85032474a541235c5674f879e499e8",
+  "sourceModuleGraphHash": "8fc7dc473d1ffcb3692e7cc012c623a8fa278519ca58e6ed9956c1ae96734be6",
   "scope": "Native v98 screens; tutorial for new journeys only. World expanded to 35 countries; technique learn sources redistributed per the world35 plan; battle runtime, motions and tournament retained.",
   "limits": [
     "Actual iPhone performance is not measured; publication status is tracked by native Sites, separately from this artifact identity.",
