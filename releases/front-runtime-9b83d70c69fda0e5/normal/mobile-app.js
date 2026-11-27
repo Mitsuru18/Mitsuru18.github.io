@@ -29,7 +29,18 @@ function tournamentSource(){
  const current=localStorage.getItem(linkedTournamentKey()),raw=current===null?localStorage.getItem(legacyTournamentKey()):current;return raw===null?null:JSON.parse(raw);}
 function tournamentEntry(){
  if(!state)return '';let event;try{event=tournamentEventStatus(state,tournamentSource());}catch{return '<p class="small" role="alert">大会記録を確認できません。記録は保持しています。</p>';}
- if(!['open','resume'].includes(event.status))return '';
+ if(!['open','resume'].includes(event.status)){
+  // rig26: the frozen event status does not know the app-layer cup modes
+  // (ascent-25/50/75) and answers 'blocked' while one of those runs is
+  // active, which hid the home resume banner for exactly those cups.
+  // Fall back to the in-page run itself; known modes keep the frozen path.
+  const run=state.cupRun;
+  if(run&&CUP_CATALOG[run.mode]&&!TOURNAMENT_CATALOG[run.mode]){
+   if(['prepare','between','battle'].includes(run.status))return `<aside class="tournament-event" aria-label="大会イベント"><p class="small">参加中の大会を再開できます</p>${btn('tournament','参加中の大会へ戻る','','secondary tournament-entry')}</aside>`;
+   if(run.status==='finished')return `<aside class="tournament-event" aria-label="大会イベント"><p class="small">大会結果を確認できます</p>${btn('tournament','大会結果を見る','','secondary tournament-entry')}</aside>`;
+  }
+  return '';
+ }
  return `<aside class="tournament-event" aria-label="大会イベント"><p class="small">${event.status==='open'?'大会イベント発生 · '+esc(TOURNAMENT_CATALOG[event.mode].name)+'<br>大会外の試合をあと'+event.remaining+'試合終えると受付終了':event.finished?'大会結果を確認できます':'参加中の大会を再開できます'}</p>${btn('tournament',event.status==='open'?'開催中の大会へ':event.finished?'大会結果を見る':'参加中の大会へ戻る','','secondary tournament-entry')}</aside>`;
 }
 function tournamentCareerLink(){const inPage=!!state?.cupCareer&&(state.cupCareer.completed>0||state.cupCareer.champions.length>0||!!state.cupRun);let legacy=false;try{const s=tournamentSource();legacy=!!(s?.completed||s?.run||s?.history?.length);}catch{}
@@ -283,6 +294,13 @@ const FIGHTER_CSS='button.home-fighter-btn{display:block;width:100%;padding:0;te
 +'.fighter-entries strong{display:block;font-size:18px}'
 +'.fighter-entries span{display:block;font-size:13px;line-height:1.5;color:var(--muted);margin-top:5px}';
 function ensureFighterCss(){if(document.querySelector('#fighter-settings-style'))return;const st=document.createElement('style');st.id='fighter-settings-style';st.textContent=FIGHTER_CSS;document.head.appendChild(st);}
+// Country detail (rig26): the theme pins .map-facts dd to white-space:nowrap,
+// so a long value (technique name + unlock condition, travel cost note)
+// cannot wrap: it forces the flex row past the viewport (419px at a 390px
+// viewport, main button pushed off-screen) and squeezes the dt label to
+// one character per line. Let values wrap and keep labels at natural width.
+const COUNTRY_CSS='.map-facts dd{white-space:normal}.map-facts dt{flex:none}';
+function ensureCountryCss(){if(document.querySelector('#country-detail-style'))return;const st=document.createElement('style');st.id='country-detail-style';st.textContent=COUNTRY_CSS;document.head.appendChild(st);}
 // Level-up celebration (rig11): settling a fight (or a training session)
 // that raised the level used to surface only as a small "LEVEL UP / Lv.N"
 // line in a corner of the result screen. It now gets a full-screen gold
@@ -360,7 +378,7 @@ function countryOutlook(c){const base=baseOpponents({country:c.id,journeyStart:'
  const courseLeft=base.filter(o=>!hasWon(state,o.id)).length;
  rivals.forEach(r=>(r.rewardMoves||[]).forEach(id=>{if(!state.known.includes(id)&&!seen.has(id)){seen.add(id);targets.push({id,via:'巡回'+r.ordinal+'戦目 · あと'+(courseLeft+rivals.filter(x=>x.ordinal<r.ordinal&&!hasWon(state,x.id)).length+1)+'勝'});}}));
  const next=base.find(o=>!hasWon(state,o.id)&&dojoUnlocked(state,o.id));return{targets,next:next?{name:next.name,level:opponentLevel(next)}:null,courseWon:base.filter(o=>hasWon(state,o.id)).length,courseCount:base.length,rivalWon:rivals.filter(r=>hasWon(state,r.id)).length,rivalCount:rivals.length};}
-function renderCountryDetail(start){if(start)return renderJapanStart();const c=COUNTRIES.find(c=>c.id===ui.mapCountry);if(!c){ui.view=start?'countries':'world';return renderCountries(start)}const d=countryDifficulty(start?null:state,c.id),e=start?{ok:true,cost:0}:travelEligibility(state,c.id),cost=start?'出発無料':c.id===state.country?'滞在中':state.visited.includes(c.id)?'再訪無料':'初回45G（不足時は再戦で貯められます）',reason=e.reason==='battle'?'試合と結果の確認を終えてから渡航できます。':e.reason==='money'?'渡航費が不足しています。':'',o=countryOutlook(c);screen(c.name,`${artMarkup('travel','map-detail-art')}<p class="map-art-name">${esc(MARTIAL_ART[c.id])} · ${esc(c.city)}</p><dl class="facts map-facts"><div><dt>国全体の難度</dt><dd>${d.label}</dd></div><div><dt>相手の配分合計</dt><dd>${d.min}〜${d.max}pt</dd></div><div><dt>${start?'初期の配分可能ポイント':'自分の割当済み合計'}</dt><dd>${d.allocated}pt</dd></div><div><dt>進行（基礎）</dt><dd>${o.courseWon} / ${o.courseCount}勝</dd></div><div><dt>巡回稽古</dt><dd>${o.rivalWon} / ${o.rivalCount}勝</dd></div><div><dt>次の相手</dt><dd>${o.next?esc(o.next.name)+'（Lv.'+o.next.level+'）':'基礎は全勝済み'}</dd></div><div><dt>今狙える技</dt><dd>${o.targets.length?o.targets.slice(0,4).map(t=>esc(name(t.id))+'（'+esc(t.via)+'）').join('<br>')+(o.targets.length>4?'<br>ほか':''):'なし（習得済み）'}</dd></div><div><dt>移動</dt><dd>${cost}</dd></div></dl><p class="small muted">基礎${d.count}戦の難度を5段階表示。各国ともその先にLv300までの巡回稽古があります。途中でも渡航でき、再訪は続きから。国の難度は訪問順で変わらず、勝率の保証ではありません。${!start&&d.allocated===0?'未配分ポイントは自分の合計に含めません。':''}</p>${reason?`<p role="status">${reason}</p>`:''}`,btn(start?'start':'travel',start?'この国から始める':c.id===state.country?'滞在中':`渡航を確定${e.cost?' · '+e.cost+'G':''}`,c.id,'primary',!e.ok)+btn('map-back','地図へ戻る','','quiet'),'COUNTRY / '+c.id.toUpperCase())}
+function renderCountryDetail(start){if(start)return renderJapanStart();ensureCountryCss();const c=COUNTRIES.find(c=>c.id===ui.mapCountry);if(!c){ui.view=start?'countries':'world';return renderCountries(start)}const d=countryDifficulty(start?null:state,c.id),e=start?{ok:true,cost:0}:travelEligibility(state,c.id),cost=start?'出発無料':c.id===state.country?'滞在中':state.visited.includes(c.id)?'再訪無料':'初回45G（不足時は再戦で貯められます）',reason=e.reason==='battle'?'試合と結果の確認を終えてから渡航できます。':e.reason==='money'?'渡航費が不足しています。':'',o=countryOutlook(c);screen(c.name,`${artMarkup('travel','map-detail-art')}<p class="map-art-name">${esc(MARTIAL_ART[c.id])} · ${esc(c.city)}</p><dl class="facts map-facts"><div><dt>国全体の難度</dt><dd>${d.label}</dd></div><div><dt>相手の配分合計</dt><dd>${d.min}〜${d.max}pt</dd></div><div><dt>${start?'初期の配分可能ポイント':'自分の割当済み合計'}</dt><dd>${d.allocated}pt</dd></div><div><dt>進行（基礎）</dt><dd>${o.courseWon} / ${o.courseCount}勝</dd></div><div><dt>巡回稽古</dt><dd>${o.rivalWon} / ${o.rivalCount}勝</dd></div><div><dt>次の相手</dt><dd>${o.next?esc(o.next.name)+'（Lv.'+o.next.level+'）':'基礎は全勝済み'}</dd></div><div><dt>今狙える技</dt><dd>${o.targets.length?o.targets.slice(0,4).map(t=>esc(name(t.id))+'（'+esc(t.via)+'）').join('<br>')+(o.targets.length>4?'<br>ほか':''):'なし（習得済み）'}</dd></div><div><dt>移動</dt><dd>${cost}</dd></div></dl><p class="small muted">基礎${d.count}戦の難度を5段階表示。各国ともその先にLv300までの巡回稽古があります。途中でも渡航でき、再訪は続きから。国の難度は訪問順で変わらず、勝率の保証ではありません。${!start&&d.allocated===0?'未配分ポイントは自分の合計に含めません。':''}</p>${reason?`<p role="status">${reason}</p>`:''}`,btn(start?'start':'travel',start?'この国から始める':c.id===state.country?'滞在中':`渡航を確定${e.cost?' · '+e.cost+'G':''}`,c.id,'primary',!e.ok)+btn('map-back','地図へ戻る','','quiet'),'COUNTRY / '+c.id.toUpperCase())}
 
 function renderHome(){
  const xp=experienceStatus(state),stats=abilityStats(state.abilities.spent),points=unspent(state.abilities),q=localTrainingQuote(state,{rankId:effectiveTrainingRank(),inBattle:false}),o=opponents(state)[nextOpponentIndex()];
@@ -566,4 +584,4 @@ window.addEventListener?.('visibilitychange',()=>{if(document.hidden)runtimeHide
 
 // Fixed home-entry intents only. The original app still owns save admission,
 // migration, locks, battle restoration and reset confirmation. No automatic fight.
-{const intent=new URLSearchParams(location.search).get('entry');const views=new Set(['hub','abilities','local-training','records','equipment','world','menu']);if(!storageBlocked&&!battle&&!demo&&!tutorialActive(state)){if(state&&state.abilities.confirmed&&views.has(intent))go(intent,{},true);else if(!state&&intent==='new')go('start-japan',{},true);else if(state&&intent==='reset'){resetOpen=true;renderReset();}}}
+{const intent=new URLSearchParams(location.search).get('entry');const views=new Set(['hub','abilities','local-training','records','equipment','world','menu','tournament']);if(!storageBlocked&&!battle&&!demo&&!tutorialActive(state)){if(state&&state.abilities.confirmed&&views.has(intent))go(intent,{},true);else if(!state&&intent==='new')go('start-japan',{},true);else if(state&&intent==='reset'){resetOpen=true;renderReset();}}}
